@@ -394,20 +394,34 @@ def panels_at_origin(
 
 
 def stage1_origin(
-    origin: dt.date, modes: list[str], run_bench: bool, fm_models: list[str], out_root: str
+    origin: dt.date,
+    modes: list[str],
+    bench_cells: set[tuple[str, str, str]],
+    fm_cells: dict[str, set[tuple[str, str, str]]],
+    out_root: str,
 ) -> dict:
-    """Runs inside a worker process. Returns {'origin', 'tasks': {model: [task dicts]}, 'task_meta': {...}}."""
+    """Runs inside a worker process for the (econ, target, input mode) cells listed: the benchmarks for
+    `bench_cells`, foundation-model tasks for `fm_cells[model]`. Returns {'origin', 'tasks':
+    {model: [task dicts]}, 'task_meta': {...}, 'skipped': [...]} where the skipped rows cover
+    the cells any model was asked for."""
     cfg: Config = _G["cfg"]
     table: pd.DataFrame = _G["table"]
     manifest = _G["manifest"]
     root = Path(out_root)
     qs = tuple(cfg.scoring["quantiles"])
     max_vars = cfg.models["benchmarks"]["bvar"]["max_vars"]
-    panels, meta = panels_at_origin(cfg, table, origin, modes, _G["revised_as_of"])
+    panels, skipped_rows = panels_at_origin(cfg, table, origin, modes, _G["revised_as_of"])
+    # a skipped cell carries the data key of its target so that a stale skip (the target's data
+    # or definition changed since) is re-evaluated by a later run instead of being trusted
+    for s in skipped_rows:
+        s["cache_key"] = skip_key(cfg, manifest, s["econ"], s["target"])
     frows: list[dict] = []
+    meta = [s for s in skipped_rows if _cell(s) in bench_cells]
     bench_models = ["naive", "ar", "bvar", "dfm", "combo_bench"]
-    if run_bench:
+    if bench_cells:
         for (econ, tname, mode), p in panels.items():
+            if (econ, tname, mode) not in bench_cells:
+                continue
             horizon = max(cfg.horizons[p.freq])
             periods = p.target_periods(horizon)
             keys = {m: cache_key(cfg, manifest, econ, tname, m) for m in bench_models}
@@ -492,21 +506,25 @@ def stage1_origin(
                             round(rts.get(m, 0.0), 3),
                         )
                     )
-        write_atomic(
-            pd.DataFrame(frows, columns=FORECAST_COLUMNS),
+        _replace_cells(
             root / "forecasts" / "bench" / f"{origin.isoformat()}.parquet",
+            pd.DataFrame(frows, columns=FORECAST_COLUMNS),
+            bench_cells,
         )
-        write_atomic(
-            pd.DataFrame(meta, columns=META_COLUMNS),
+        _replace_cells(
             root / "meta" / "bench" / f"{origin.isoformat()}.parquet",
+            pd.DataFrame(meta, columns=META_COLUMNS),
+            bench_cells,
         )
     # foundation-model tasks
     tasks: dict[str, list[dict]] = {}
     task_meta: dict[str, dict] = {}
     spaces = ["transformed"] + (["level"] if "levels" in cfg.backtest.get("variants", []) else [])
-    for mname in fm_models:
+    for mname, cells in fm_cells.items():
         fm = cfg.foundation_models()[mname]
         for (econ, tname, mode), p in panels.items():
+            if (econ, tname, mode) not in cells:
+                continue
             horizon = max(cfg.horizons[p.freq])
             for variant in fm.variants:
                 for space in spaces:
@@ -541,7 +559,8 @@ def stage1_origin(
                         "last_level": float(p.target_levels.iloc[-1]),
                         "n_history": int(len(p.target_tr)),
                     }
-    skipped_fm = [m for m in meta if m["status"] == "skipped"]
+    fm_touched = set().union(*fm_cells.values()) if fm_cells else set()
+    skipped_fm = [s for s in skipped_rows if _cell(s) in fm_touched]
     return {
         "origin": origin.isoformat(),
         "tasks": tasks,
@@ -550,34 +569,65 @@ def stage1_origin(
     }
 
 
-def _bench_done(root: Path, cfg: Config, manifest: dict, origin: dt.date) -> bool:
-    p = root / "meta" / "bench" / f"{origin.isoformat()}.parquet"
-    if not p.exists():
-        return False
-    m = pd.read_parquet(p)
-    m = m[m["status"] != "skipped"]
-    if m.empty:
-        return True
-    for (econ, tname, model), g in m.groupby(["econ", "target", "model"]):
-        if set(g["cache_key"]) != {cache_key(cfg, manifest, econ, tname, model)}:
-            return False
-    return True
+def skip_key(cfg: Config, manifest: dict, econ: str, target: str) -> str:
+    """Key stored on a skipped cell: the target's definition and data (no model)."""
+    return cache_key(cfg, manifest, econ, target, "-")
 
 
-def _fm_done(
-    root: Path, cfg: Config, manifest: dict, origin: dt.date, model: str, wkey: str
-) -> bool:
-    p = root / "meta" / "fm" / f"{origin.isoformat()}.parquet"
+def _cell(row: dict) -> tuple[str, str, str]:
+    return (row["econ"], row["target"], row["input_mode"])
+
+
+def _cells_of(df: pd.DataFrame) -> pd.Series:
+    return pd.Series(
+        list(zip(df["econ"], df["target"], df["input_mode"], strict=True)), index=df.index
+    )
+
+
+def _replace_cells(path: Path, new: pd.DataFrame, cells: set[tuple[str, str, str]]) -> None:
+    """Write `new` over the rows of `cells` in the per-origin file, keeping every other cell."""
+    if path.exists():
+        old = pd.read_parquet(path)
+        new = pd.concat([old[~_cells_of(old).isin(cells)], new], ignore_index=True)
+    write_atomic(new, path)
+
+
+def _todo_cells(
+    root: Path,
+    cfg: Config,
+    manifest: dict,
+    origin: dt.date,
+    modes: list[str],
+    kind: str,
+    model: str | None = None,
+    wkey: str | None = None,
+) -> set[tuple[str, str, str]]:
+    """The configured (econ, target, input mode) cells at `origin` that are not stored under
+    current keys. A cell is done when either its model rows (`kind` "bench": every benchmark;
+    "fm": `model`) carry the current cache key, or its skipped row carries the current skip key.
+    A cell that is absent, keyless or stale is to do."""
+    cells = {(e, t, mode) for e in cfg.economies for t in cfg.targets[e] for mode in modes}
+    p = root / "meta" / kind / f"{origin.isoformat()}.parquet"
     if not p.exists():
-        return False
+        return cells
     m = pd.read_parquet(p)
-    m = m[(m["model"] == model) & (m["status"] != "skipped")]
-    if m.empty:
-        return False
-    for (econ, tname), g in m.groupby(["econ", "target"]):
-        if set(g["cache_key"]) != {cache_key(cfg, manifest, econ, tname, model, weights=wkey)}:
-            return False
-    return True
+    todo = set(cells)
+    for (econ, tname, mode), g in m.groupby(["econ", "target", "input_mode"]):
+        if (econ, tname, mode) not in cells:
+            continue
+        rows = g[g["model"] != "-"] if kind == "bench" else g[g["model"] == model]
+        skips = g[g["model"] == "-"]
+        ok = True
+        if not rows.empty:
+            for mdl, gg in rows.groupby("model"):
+                key = cache_key(cfg, manifest, econ, tname, mdl, weights=wkey)
+                if set(gg["cache_key"]) != {key}:
+                    ok = False
+        elif skips.empty or set(skips["cache_key"]) != {skip_key(cfg, manifest, econ, tname)}:
+            ok = False
+        if ok:
+            todo.discard((econ, tname, mode))
+    return todo
 
 
 def stage1(
@@ -604,20 +654,42 @@ def stage1(
         settings = model_settings(cfg, m)
         wdir, man = ensure_weights(fms[m], allow_download=settings.get("allow_download", True))
         weights[m] = (wdir, weights_digest(man))
-    # what is left to do
-    todo_bench = [
-        o for o in origins if run_bench and (force or not _bench_done(root, cfg, manifest, o))
-    ]
-    todo_fm = {
-        m: [o for o in origins if force or not _fm_done(root, cfg, manifest, o, m, weights[m][1])]
-        for m in models
-    }
+    # what is left to do, cell by cell (an (econ, target, input mode) at an origin)
+    all_cells = {(e, t, mode) for e in cfg.economies for t in cfg.targets[e] for mode in modes}
+    todo_bench: dict[dt.date, set] = {}
+    todo_fm: dict[str, dict[dt.date, set]] = {m: {} for m in models}
+    for o in origins:
+        if run_bench:
+            c = all_cells if force else _todo_cells(root, cfg, manifest, o, modes, "bench")
+            if c:
+                todo_bench[o] = c
+        for m in models:
+            c = (
+                all_cells
+                if force
+                else _todo_cells(root, cfg, manifest, o, modes, "fm", m, weights[m][1])
+            )
+            if c:
+                todo_fm[m][o] = c
     todo_origins = sorted(set(todo_bench) | {o for v in todo_fm.values() for o in v})
     report = {
         "origins": len(origins),
         "bench_todo": len(todo_bench),
+        "bench_cells": sum(len(c) for c in todo_bench.values()),
         "fm_todo": {m: len(v) for m, v in todo_fm.items()},
+        "fm_cells": {m: sum(len(c) for c in v.values()) for m, v in todo_fm.items()},
     }
+    (workdir / "todo.json").write_text(
+        json.dumps(
+            {
+                "bench": {o.isoformat(): sorted(c) for o, c in todo_bench.items()},
+                "fm": {
+                    m: {o.isoformat(): sorted(c) for o, c in v.items()} for m, v in todo_fm.items()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     if not todo_origins:
         return report
     nproc = processes or int(cfg.backtest.get("parallel_benchmark_processes", 4))
@@ -632,8 +704,8 @@ def stage1(
                 stage1_origin,
                 o,
                 modes,
-                o in todo_bench,
-                [m for m in models if o in todo_fm[m]],
+                todo_bench.get(o, set()),
+                {m: todo_fm[m][o] for m in models if o in todo_fm[m]},
                 str(root),
             ): o
             for o in todo_origins
@@ -717,12 +789,25 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
     # run holds about six million forecast rows). Skipped cells (model "-") are rewritten first
     # for every origin this run touched; then each model replaces its own rows at the origins
     # where it had tasks. Other models' stored rows at those origins are left untouched.
-    all_origins = {s["origin"] for s in skipped} | {tm["origin"] for tm in task_meta.values()}
-    skipped_meta: dict[str, list[dict]] = {o: [] for o in all_origins}
+    todo_path = workdir / "todo.json"
+    todo = json.loads(todo_path.read_text(encoding="utf-8"))["fm"] if todo_path.exists() else None
+    if todo is None:  # a run from before cell-level bookkeeping computed every cell it touched
+        all_origins = {s["origin"] for s in skipped} | {tm["origin"] for tm in task_meta.values()}
+        cells_of = {m: dict.fromkeys(all_origins) for m in {k.split(":")[0] for k in task_meta}}
+        union_cells: dict[str, set | None] = dict.fromkeys(all_origins)
+    else:
+        cells_of = {m: {o: {tuple(c) for c in cs} for o, cs in v.items()} for m, v in todo.items()}
+        union_cells = {}
+        for v in cells_of.values():
+            for o, cs in v.items():
+                union_cells[o] = union_cells.get(o, set()) | cs
+    skipped_meta: dict[str, list[dict]] = {o: [] for o in union_cells}
     for s in skipped:
-        skipped_meta[s["origin"]].append(s)
+        cells = union_cells.get(s["origin"], set())
+        if cells is None or _cell(s) in cells:
+            skipped_meta.setdefault(s["origin"], []).append(s)
     written: set[str] = set()
-    _merge_fm_rows(root, {}, skipped_meta, {"-"}, written)
+    _merge_fm_rows(root, {}, skipped_meta, {"-"}, written, union_cells)
     req_paths = sorted(
         (workdir / "requests").glob("*.json"), key=lambda q: (q.name.split("__")[0], q.name)
     )
@@ -734,7 +819,9 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
         model = rp.name.split("__")[0]
         if model != current:
             if current is not None:
-                _merge_fm_rows(root, by_origin_rows, by_origin_meta, {current}, written)
+                _merge_fm_rows(
+                    root, by_origin_rows, by_origin_meta, {current}, written, cells_of[current]
+                )
                 by_origin_rows, by_origin_meta = {}, {}
             current = model
         req = json.loads(rp.read_text(encoding="utf-8"))
@@ -816,7 +903,7 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
             # variant label for FM rows: the forecast rows keep variant + space separately
             by_origin_meta.setdefault(tm["origin"], []).append(mrow)
     if current is not None:
-        _merge_fm_rows(root, by_origin_rows, by_origin_meta, {current}, written)
+        _merge_fm_rows(root, by_origin_rows, by_origin_meta, {current}, written, cells_of[current])
     return {"fm_ok": n_ok, "fm_error": n_err, "origins_written": len(written)}
 
 
@@ -826,23 +913,27 @@ def _merge_fm_rows(
     meta_by_origin: dict[str, list[dict]],
     drop_models: set[str],
     written: set[str],
+    cells_by_origin: dict[str, set[tuple[str, str, str]] | None],
 ) -> None:
-    """Replace the rows of `drop_models` at every origin in the two dicts with the new rows."""
+    """Replace the rows of `drop_models` at the (econ, target, mode) cells listed per origin (None:
+    every cell) with the new rows; rows of other models and of other cells are kept."""
+
+    def drop(df: pd.DataFrame, cells) -> pd.Series:
+        mask = df["model"].isin(drop_models)
+        return mask if cells is None else mask & _cells_of(df).isin(cells)
+
     for origin in sorted(set(rows_by_origin) | set(meta_by_origin)):
+        cells = cells_by_origin.get(origin)
         fpath = root / "forecasts" / "fm" / f"{origin}.parquet"
         mpath = root / "meta" / "fm" / f"{origin}.parquet"
         new_rows = pd.DataFrame(rows_by_origin.get(origin, []), columns=FORECAST_COLUMNS)
         new_meta = pd.DataFrame(meta_by_origin.get(origin, []), columns=META_COLUMNS)
         if fpath.exists():
             old = pd.read_parquet(fpath)
-            new_rows = pd.concat(
-                [old[~old["model"].isin(drop_models)], new_rows], ignore_index=True
-            )
+            new_rows = pd.concat([old[~drop(old, cells)], new_rows], ignore_index=True)
         if mpath.exists():
             oldm = pd.read_parquet(mpath)
-            new_meta = pd.concat(
-                [oldm[~oldm["model"].isin(drop_models)], new_meta], ignore_index=True
-            )
+            new_meta = pd.concat([oldm[~drop(oldm, cells)], new_meta], ignore_index=True)
         write_atomic(new_rows, fpath)
         write_atomic(new_meta, mpath)
         written.add(origin)

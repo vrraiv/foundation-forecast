@@ -412,3 +412,133 @@ def test_stage3_stores_guard_failures_as_errors(tmp_path):
         not (root / "forecasts" / "fm" / "2020-02-25.parquet").exists()
         or pd.read_parquet(root / "forecasts" / "fm" / "2020-02-25.parquet").empty
     )
+
+
+def _skip_row(origin, econ, target, mode, key, note="synthetic skip"):
+    return {
+        "origin": origin,
+        "econ": econ,
+        "target": target,
+        "freq": "M",
+        "model": "-",
+        "variant": "-",
+        "input_mode": mode,
+        "status": "skipped",
+        "note": note,
+        "cache_key": key,
+    }
+
+
+def test_todo_cells_detects_missing_stale_and_keyless_skips(tmp_path):
+    cfg = _synthetic_cfg()
+    raw = cfg.model_dump()
+    raw["targets"]["ZZ"]["y"] = dict(
+        raw["targets"]["ZZ"]["x"], vintages={"source": "ecb_rtd", "key": "M.ZZ.Y"}
+    )
+    from ffcast.config import Config
+
+    cfg = Config(**raw)
+    man = {"rtd:M.ZZ.X": {"sha256": "a" * 64}, "rtd:M.ZZ.Y": {"sha256": "b" * 64}}
+    o = dt.date(2020, 2, 25)
+    root = tmp_path
+    (root / "meta" / "fm").mkdir(parents=True)
+    modes = ["realtime", "revised"]
+    # nothing stored: every cell to do
+    both = {("ZZ", t, m) for t in ("x", "y") for m in modes}
+    assert bt._todo_cells(root, cfg, man, o, modes, "fm", "fmA", "w") == both
+    kx = cache_key(cfg, man, "ZZ", "x", "fmA", weights="w")
+    rows = [
+        {
+            **_skip_row(o.isoformat(), "ZZ", "x", m, kx),
+            "model": "fmA",
+            "variant": "univariate",
+            "status": "ok",
+        }
+        for m in modes
+    ]
+    # y skipped without a key (a run from before skip keys): to do
+    rows += [_skip_row(o.isoformat(), "ZZ", "y", m, None) for m in modes]
+    pd.DataFrame(rows, columns=bt.META_COLUMNS).to_parquet(root / "meta" / "fm" / f"{o}.parquet")
+    ys = {("ZZ", "y", m) for m in modes}
+    assert bt._todo_cells(root, cfg, man, o, modes, "fm", "fmA", "w") == ys
+    # y skipped under the current skip key: done; under a stale one: to do
+    rows[2:] = [
+        _skip_row(o.isoformat(), "ZZ", "y", m, bt.skip_key(cfg, man, "ZZ", "y")) for m in modes
+    ]
+    pd.DataFrame(rows, columns=bt.META_COLUMNS).to_parquet(root / "meta" / "fm" / f"{o}.parquet")
+    assert bt._todo_cells(root, cfg, man, o, modes, "fm", "fmA", "w") == set()
+    man2 = {**man, "rtd:M.ZZ.Y": {"sha256": "c" * 64}}
+    assert bt._todo_cells(root, cfg, man2, o, modes, "fm", "fmA", "w") == ys
+    # a different model or weights digest sees x as to do; only the mode with stale rows otherwise
+    xs = {("ZZ", "x", m) for m in modes}
+    assert bt._todo_cells(root, cfg, man, o, modes, "fm", "fmB", "w") == xs
+    assert bt._todo_cells(root, cfg, man, o, modes, "fm", "fmA", "w2") == xs
+    rows[1]["cache_key"] = "stale"
+    pd.DataFrame(rows, columns=bt.META_COLUMNS).to_parquet(root / "meta" / "fm" / f"{o}.parquet")
+    assert bt._todo_cells(root, cfg, man, o, modes, "fm", "fmA", "w") == {("ZZ", "x", "revised")}
+
+
+def test_stage3_with_todo_replaces_only_the_listed_cells(tmp_path):
+    cfg = _synthetic_cfg()
+    root = tmp_path / "store"
+    o = "2020-02-25"
+    # first run: model fmA at cell x, plus a stored row of fmA at a second cell y and a skipped
+    # row for cell z, both of which a later run must leave alone
+    w1 = _fm_workdir(tmp_path, "w1", {"fmA": {o: 1.0}})
+    bt.stage3(w1, cfg=cfg, root=root)
+    m = pd.read_parquet(root / "meta" / "fm" / f"{o}.parquet")
+    extra = pd.DataFrame(
+        [
+            {**m[m["model"] == "fmA"].iloc[0].to_dict(), "target": "y", "note": "keep me"},
+            _skip_row(o, "ZZ", "z", "revised", "k", note="keep me too"),
+        ],
+        columns=bt.META_COLUMNS,
+    )
+    pd.concat([m, extra], ignore_index=True).to_parquet(root / "meta" / "fm" / f"{o}.parquet")
+    f = pd.read_parquet(root / "forecasts" / "fm" / f"{o}.parquet")
+    pd.concat([f, f.assign(target="y", value=42.0)], ignore_index=True).to_parquet(
+        root / "forecasts" / "fm" / f"{o}.parquet"
+    )
+    # second run touches only cell x for fmA (todo.json says so)
+    w2 = _fm_workdir(tmp_path, "w2", {"fmA": {o: 3.0}})
+    (w2 / "todo.json").write_text(
+        json.dumps({"bench": {}, "fm": {"fmA": {o: [["ZZ", "x", "realtime"]]}}})
+    )
+    bt.stage3(w2, cfg=cfg, root=root)
+    f = pd.read_parquet(root / "forecasts" / "fm" / f"{o}.parquet")
+    assert np.isclose(f[f["target"] == "x"]["value"].abs().max(), 1.2)
+    assert (f[f["target"] == "y"]["value"] == 42.0).all() and len(f[f["target"] == "y"]) == 2 * len(
+        QS
+    )
+    m = pd.read_parquet(root / "meta" / "fm" / f"{o}.parquet")
+    assert m.loc[(m["model"] == "fmA") & (m["target"] == "y"), "note"].item() == "keep me"
+    assert m.loc[m["target"] == "z", "note"].item() == "keep me too"
+    # the skipped row of the touched cell (target y in the synthetic workdir is the skip target,
+    # which is not in the todo) is left as the first run wrote it
+    assert m.loc[(m["model"] == "-") & (m["target"] == "y"), "note"].item() == "synthetic skip w1"
+
+
+def test_replace_cells_keeps_other_cells(tmp_path):
+    p = tmp_path / "f.parquet"
+    old = pd.DataFrame(
+        {
+            "econ": ["ZZ", "ZZ"],
+            "target": ["x", "y"],
+            "input_mode": ["realtime", "realtime"],
+            "model": ["ar", "ar"],
+            "value": [1.0, 2.0],
+        }
+    )
+    old.to_parquet(p)
+    new = pd.DataFrame(
+        {
+            "econ": ["ZZ"],
+            "target": ["x"],
+            "input_mode": ["realtime"],
+            "model": ["ar"],
+            "value": [9.0],
+        }
+    )
+    bt._replace_cells(p, new, {("ZZ", "x", "realtime")})
+    out = pd.read_parquet(p).sort_values("target")
+    assert out["value"].tolist() == [9.0, 2.0]

@@ -1,15 +1,15 @@
 # STATUS
 
-Last updated: 2026-11-17 (end of Phase 0). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-17 (Phase 1 done, Phase 2 starting). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
 
 | Phase | State |
 | --- | --- |
-| 0 Feasibility | **Done, awaiting HUMAN GATE 0.** `docs/feasibility.md` written; every PLAN.md section-3 row marked. |
-| 1 Repository and environment | Not started |
-| 2 Vintage data layer | Not started |
+| 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
+| 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
+| 2 Vintage data layer | In progress |
 | 3 Models and benchmarks | Not started |
 | 4 Backtest and scoring | Not started |
 | 5 Live registry | Not started |

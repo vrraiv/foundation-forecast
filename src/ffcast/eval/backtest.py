@@ -132,7 +132,11 @@ def cache_key(
     """Config slice + data hashes + weights digest that determine one (target, model) result."""
     fm = cfg.models["foundation"].get(model)
     slice_ = {
-        "target": cfg.targets[econ][target].model_dump(),
+        # `latest` names the live-data source, which the backtest never reads (vintages and
+        # pseudo-vintage bases live under `vintages`), so switching it leaves keys unchanged
+        "target": {
+            k: v for k, v in cfg.targets[econ][target].model_dump().items() if k != "latest"
+        },
         "conditioning": cfg.conditioning.get(econ, []),
         "horizons": cfg.horizons,
         "origins": cfg.origins.model_dump(),

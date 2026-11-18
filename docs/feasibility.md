@@ -1,0 +1,96 @@
+# Phase 0 feasibility report
+
+Date: 2026-11-17 (probes run 17-18 Nov 2026 UTC). Detailed evidence, URL logs and
+sample-file descriptions are in `docs/probes/` (statcan.md, ecb_eurostat.md, oecd_misc.md,
+models.md). This document summarises, marks every section-3 row of PLAN.md as
+**confirmed / changed / unavailable**, and recommends a final target list, window and
+origin rule for HUMAN GATE 0. Nothing here is a decision; decisions are the owner's.
+
+Status vocabulary: *confirmed* = verified by a direct pull or primary document;
+*confirmed (mirror)* = verified only through a third-party copy; *changed* = exists but
+differs from the plan; *unavailable* = not found in any public source we checked;
+*not verified* = could not be tested in this probe.
+
+## 1. Data sources (PLAN.md section 3)
+
+| Need | Plan expected | Found | Status |
+| --- | --- | --- | --- |
+| Canada vintages | StatCan real-time tables, 19 series, from about Jan 2015; GDP expenditure (36-10-0431) from Nov 2012 | 19 real-time tables exist, but 6 are **inactive** (frozen Feb-Mar 2026: manufacturing, wholesale, both retail tables) and 2 are stale (18-10-0259 CPI core measures, 36-10-0042 BoP). Active and relevant: 36-10-0431 GDP expenditure (56 vintages, 30 Nov 2012 to 28 Aug 2026, includes household final consumption), 36-10-0430 income-side GDP, 36-10-0491 monthly GDP by industry, 12-10-0165 trade, 14-10-0331/0332 SEPH payrolls. No vintage table for CPI ex food and energy, the LFS unemployment rate, or (any longer) retail sales. **Every host under www150.statcan.gc.ca, including the WDS API and bulk CSV zips, returns a Cloudflare JavaScript challenge (HTTP 403, `Cf-Mitigated: challenge`) to every scripted client tried from this machine**, so no direct sample was pulled. Table structure was verified through the DBnomics mirror (provider STATCAN; carries 36100431, 36100430, 36100042 only). Licence: Statistics Canada Open Licence allows use, reproduction, distribution and value-added products with attribution. | **changed**; API access **not verified** |
+| Euro area vintages | ECB Real Time Database (`RTD`), vintages from Jan 2001; 2015+ via API, earlier as bulk files; experimental | Dataflow `ECB:RTD(1.0)`, 278 keys, last update 28 Oct 2026, labelled experimental and "for research purposes only". **The API returns full history from 3 Jan 2001** for all target keys (bulk files not needed; one spot check matched). Vintages are ECB frozen snapshots taken at 15:30 on the working day before each Governing Council monetary-policy meeting: 12 a year to 2014, **8 a year since 2015** (largest gaps 91-98 days), retrieved with `includeHistory=true` as a change log (`ACTION`, `VALID_FROM`, `VALID_TO`), not as Eurostat release snapshots. Live keys: real GDP, HICP all items, unemployment rate, household consumption, M1-M3, loans, ESI and sector confidence, Euribor, exchange rates, Euro Stoxx, extra-EA trade, GDP components, employment, ULC. **Stale** (no vintage after 29 Oct 2025): industrial production, retail trade, PPI, oil, bond yields, HICP ex energy and unprocessed food; 86 of 174 monthly keys stopped updating between Nov 2024 and Aug 2025, cause unknown. **No HICP ex energy, food, alcohol and tobacco key.** Licence: ECB terms allow free reuse with citation and a statement of modifications; redistribution of derived results is not explicitly addressed; DataStream-sourced market series are third-party and must not be redistributed. | **changed** (2001+ via API; 8 vintages a year; two targets stale; core absent) |
+| Cross-check and gap-filling | OECD `DSD_STES_REVISIONS@DF_STES_REVISIONS` | Exists and is live: `OECD.SDD.STES,DSD_STES_REVISIONS@DF_STES_REVISIONS,4.0`, about 79M observations, latest edition 202611. Vintage = `EDITION` (publication month, `YYYYMM`); no release-date attribute. Measures: GDP volume, household+NPISH consumption volume, CPI, unemployment rate, industrial production, retail volume (plus M3, employment, earnings, trade, leading indicators). **Canada: all six measures have every monthly edition from 199902 to 202611 (334 editions).** Euro area is a splice of EA11 (1999-2001), EA18 (200103-201501), EA19 (201502-202303), EA20 (202304 on). **No core inflation measure.** Levels are not comparable across editions (index bases change while `BASE_PER` is stale); use within-vintage growth rates. Edition timing (verified on 2024-2026 samples): a CPI edition `M` contains reference months up to `M-2`; unemployment to `M-1` or `M-2`; the GDP quarter first appears two months after quarter end. Flagged `NonProductionDataflow=true` (undocumented). Terms (1 July 2024): extract, download, adapt, distribute "for any purpose, even for commercial use" with OECD citation. | **confirmed**, better than expected |
+| Latest data for live runs | StatCan WDS; Eurostat API; ECB Data Portal API | Eurostat JSON API works without a key for all six euro-area targets (`namq_10_gdp`, `prc_hicp_minr` with dimension `coicop18`, `une_rt_m` with `geo=EA21`, `sts_inpr_m`, `sts_trtu_m` with `indic_bt=VOL_SLS`); `prc_hicp_midx` and `prc_hicp_manr` are frozen at 2025-12. ECB Data Portal API works for policy rates (`FM`) and exchange rates (`EXR`). StatCan WDS: blocked as above; open.canada.ca CKAN metadata is reachable and can serve as a release/staleness poll; DBnomics mirror is a fallback with an update lag. | Eurostat and ECB **confirmed**; StatCan **not verified** |
+| Human forecasts, euro area | ECB SPF individual-level CSV per round | `SPF_individual_forecasts_by_round.zip` (1.6 MB, rounds 1999Q1 to 2026Q4, one multi-block CSV per round) and `SPF_dataset_description.pdf` are public. Variables: HICP, core HICP, real GDP growth, unemployment rate, plus assumptions. Horizons: current, next and next-but-one calendar year, long term, rolling 1- and 2-year ahead of the latest release. Anonymised stable forecaster IDs. Survey windows are stated per round in the release notes (2015+ checked; pre-2015 not checked). Also available as ECB Data Portal dataflow `SPF`. | **confirmed** |
+| Human forecasts, Canada | None known | None found at individual level. Finance Canada private-sector survey publishes averages only; Bank of Canada Market Participants Survey publishes median and quartiles (2023+); Conference Board survey appears paywalled (page unreachable); academic work uses Consensus Economics (paid, excluded). Mean-only public series exist for a weaker comparison. | **unavailable** (as the plan expected) |
+
+Other context checks
+- The MACROCAST citation resolves (arXiv 2606.28670, Carriero, Pettenuzzo and Shekhar, June 2026) but the plan's description is wrong: it proposes a new vintage-consistent foundation model trained and evaluated on FRED-MD real-time vintages (Aug 1999 to Dec 2024), with AR(1), BVAR, DFM, Chronos-2 and Moirai 2.0 as competitors. It does **not** run a real-time versus revised comparison and does not include TimesFM. Q1 therefore remains open even for the US. No paper was found that evaluates foundation models on real-time vintages for Canada or the euro area.
+
+## 2. Target coverage
+
+Per-target vintage sources. "Precise" means vintages carry the actual publication date; "edition" means OECD monthly snapshots with month-level timing.
+
+### Canada
+
+| Target (plan) | Vintage source | From | Timing | Gaps and notes | Status |
+| --- | --- | --- | --- | --- | --- |
+| Real GDP, expenditure (Q) | StatCan 36-10-0431 (precise, via mirror until API access works); OECD B1GQ_Q (edition) | Nov 2012 (StatCan); Feb 1999 (OECD) | precise / edition | Chained-dollar levels in early vintages are in the base year of the time; use growth rates within vintage | confirmed (mirror) |
+| Headline CPI, all items (M, NSA) | None needed: **unrevised** (0 of 32 reference months changed across 33 OECD editions 2024-2026; the only changes since 1999 are six rebasings). Latest data with publication-lag enforcement | n/a | release 15th-22nd | Vintage-free as the plan assumed, now verified | confirmed |
+| Core CPI ex food and energy (M) | **No vintage source.** StatCan 18-10-0259 holds Bank of Canada core measures (trim, median, common), is stale since May 2026, and does not clearly contain CPI ex food and energy. OECD has no core measure | - | - | Options: (a) treat NSA CPI ex food and energy as vintage-free like headline, with lag enforcement, excluded from the Q1 real-time-vs-revised comparison; (b) drop | **unavailable** as a vintage series |
+| Unemployment rate, LFS (M, SA) | OECD UNEMP (edition) | Feb 1999 | edition | No StatCan vintage table. LFS SA data revised each January; OECD editions capture this (10 of 32 recent months revised) | changed (OECD only) |
+| Activity: monthly GDP by industry (M) | StatCan 36-10-0491 (precise) | about Jan 2015 (not verified) | precise | Active (updated 9 Nov 2026), about 411 MB full table, download blocked. Owner proposed replacing with consumer spending | confirmed (ID only) |
+| Consumer spending: household final consumption (Q, volume) | StatCan 36-10-0431 (precise, mirror); OECD P3_S1M_Q (edition, includes NPISH) | Nov 2012; Feb 1999 | precise / edition | Quarterly, so Canada would have 4 monthly and 2 quarterly targets | confirmed (mirror) |
+| Retail sales volume (M) | OECD TOVM (edition) | Feb 1999 | edition | StatCan real-time tables 20-10-0081/0082 inactive since Mar 2026 | changed (OECD only) |
+| Alternative activity: industrial production (M) | OECD PRVM (edition) | Feb 1999 | edition | Available if a monthly activity target is wanted alongside consumption | available |
+
+### Euro area
+
+| Target (plan) | Vintage source | From | Timing | Gaps and notes | Status |
+| --- | --- | --- | --- | --- | --- |
+| Real GDP (Q) | ECB RTD `Q.S0.S.G_GDPM_TO_C.E` (precise, 8 a year); OECD B1GQ_Q (edition, EA splice) | Jan 2001; Feb 1999 | precise / edition | Composition changes with every enlargement appear as level revisions (incl. Bulgaria 2026) | confirmed |
+| HICP all items (M) | RTD `M.S0.N.P_C_OV.X` (precise); OECD CP (edition) | Jan 2001 | precise / edition | Rebased to 2025=100 in the Feb 2026 vintage | confirmed |
+| HICP ex energy, food, alcohol, tobacco (M) | **No vintage source** (not in RTD; RTD's ex-energy-and-unprocessed-food key is stale; not in OECD). Latest data: Eurostat `prc_hicp_minr`, `coicop18=TOT_X_NRG_FOOD` | - | - | Same options as Canada core: lag-only treatment, or drop | **unavailable** as a vintage series |
+| Unemployment rate (M) | RTD `M.S0.S.L_UNETO.F` (precise); OECD UNEMP (edition) | Jan 2001 | precise / edition | | confirmed |
+| Industrial production ex construction (M) | RTD `M.S0.Y.I_XCONS.X` precise **to Oct 2025 only**; OECD PRVM (edition) throughout | Jan 2001 | precise then edition | RTD stale; options: OECD editions as the single source, or RTD spliced with OECD (two timing conventions in one series), or drop | changed |
+| Retail trade volume (M) | RTD `M.S0.Y.O_RTXMOTVD.X` precise **to Oct 2025 only**; OECD TOVM (edition) | Jan 2001 | precise then edition | Same as IP | changed |
+| Household final consumption (Q) | RTD `Q.S0.S.G_FCHI_TO_C.E` (precise, includes NPISH); OECD P3_S1M_Q | Jan 2001 | precise / edition | | confirmed |
+
+Conditioning set (real vintages available): euro area from RTD (HICP components, M1-M3, loans, ESI and sector confidence, Euribor, NEER/REER, extra-EA trade, Euro Stoxx, GDP components, employment, ULC, capacity utilisation; about 40 live keys) and OECD (M3, employment, earnings, trade, leading indicator). Canada from OECD (same list) plus StatCan trade and SEPH payrolls if access works. Unrevised financial series (policy rates, exchange rates, oil, equities) from the ECB Data Portal and Bank of Canada Valet API, dated on or before the origin.
+
+## 3. Three timing definitions the owner must fix
+
+These determine what "no look-ahead" means in code and are not derivable from the plan.
+
+1. **Publication date of an OECD edition.** Editions are stamped with a month only. Observed content implies the snapshot is taken in the first half of the month (edition `M` never contains Canadian CPI for `M-1`, which StatCan releases on the 15th-22nd, and contains LFS for `M-1` only sometimes). Options: (a) conservative, edition `M` becomes visible at the first origin after month `M` ends; (b) calendar-aligned, each observation becomes visible on its known national release date, with the edition used only for its values. Recommendation: (a) as primary, (b) as a Phase 2 refinement where release calendars are reliable.
+2. **Releases on the origin day.** StatCan CPI and retail trade fall on the 20th-or-next-business-day origin in 5 of 14 origins checked and within one day in 5 more; euro-area full HICP falls on the 17th-24th. Vintage dates are day-granular, so an intraday rule cannot be enforced in the backtest. Options: (a) information set = everything with vintage date strictly before the origin date; (b) move the origin to a day with no collisions. Checked ranges: Canadian CPI 14th-22nd, Canadian retail 19th-24th, euro-area full HICP 17th-24th; monthly and quarterly GDP fall on the last business day; LFS first or second Friday; euro-area unemployment and GDP flash at month end, retail first week, IP mid-month. **A 25th-or-next-business-day origin would include CPI, retail and full HICP every month and exclude GDP every month**, with no collisions in the observed calendar. Recommendation: origin on the 25th, information set strictly before the origin date (local time of the statistical office).
+3. **"First release" when the source is a snapshot.** RTD has 8 vintages a year and OECD 12; the first value seen may already have been revised once by the statistical office. Recommendation: define "first release" as the value in the earliest vintage containing the period, and record the vintage lag per observation so the scoring can report how often it exceeds one release cycle.
+
+## 4. Models
+
+All four planned models load and forecast on CPU on Windows, each in its own virtualenv (details and pins in `docs/probes/models.md`).
+
+| Model | Pin (HF sha) | Weights last changed | Licence | Note |
+| --- | --- | --- | --- | --- |
+| Chronos-2 `amazon/chronos-2` | `29ec3766d36d6f73f0696f85560a422f50e8498c` | 2025-10-30 (later commits are README only) | Apache-2.0 | multivariate |
+| TimesFM 2.5 `google/timesfm-2.5-200m-pytorch` | `1d952420fba87f3c6dee4f240de0f1a0fbc790e3` | 2025-10-01 ("refreshed model with speed optimizations"; repo created 2025-09-02) | Apache-2.0 | package `timesfm` 3.0.2 |
+| TiRex `NX-AI/TiRex` | `43ebaaff068c1390785c387b3e5178df3f4c92ca` | 2025-05-26 (onnx added 2026-02-05; README 2026-11-13) | NXAI Community License: free for research, attribution required, commercial licence only for entities above EUR 100m revenue | PyPI `tirex` is an unrelated package; install from GitHub |
+| Moirai 2.0 `Salesforce/moirai-2.0-R-small` | `30f43ff08c8494f4943ae1521e9d4e94a0fbb389` | 2025-08-06 | **CC-BY-NC-4.0** | `uni2ts` pins torch<2.5, numpy 1.26: separate environment required |
+| TiRex-2 `NX-AI/TiRex-2` (not in plan) | `352636173653592b6dceb3fbeee9224ca97952a9` | 2026-06-16 preliminary; folder re-uploaded 2026-07-02 and 2026-10-06 (which files changed not checked) | Apache-2.0 | multivariate with covariates; trained on LOTSA, which contains FRED-MD, M3, M4 and CIF; runs on CPU with `torch.compile` disabled on Windows |
+| TimesFM 3.0 `google/timesfm-3.0-pytorch` (not in plan) | `43046b85ec22d584a13f8098c2ed39c889e129c2` | 2026-08-24 | non-commercial | excluded by the plan's rule unless the owner asks |
+
+No model states a calendar cutoff for its real-data corpus. TimesFM gives partial cutoffs (Wikipedia pageviews Nov 2023, Google Trends end-2022); Moirai's internal data cover roughly Jan 2024 to Jan 2025. Chronos-2 and TiRex list M4 monthly but not FRED-MD among pretraining sets; TiRex-2's LOTSA corpus does include FRED-MD. For Q2 the only enforceable boundary is the weight-file date above.
+
+## 5. Recommendations for Gate 0
+
+**Targets (per economy).** Keep: real GDP (Q), headline inflation (M; vintage-free with lag enforcement for Canada), unemployment rate (M), retail sales volume (M), household final consumption (Q; replacing monthly GDP by industry for Canada and kept for the euro area alongside industrial production). Core inflation: no vintage source in either economy; recommend keeping it as a lag-only series excluded from the Q1 comparison, or dropping it. Euro-area industrial production and retail: recommend OECD editions as the single vintage source for these two targets in both economies, so the two economies are treated alike, with RTD used as a precision cross-check to Oct 2025.
+
+**Vintage sources.** Precise-dated sources where live (StatCan GDP tables, RTD for GDP, HICP, unemployment, consumption), OECD editions elsewhere. Record the source and timing convention per observation. Prefer dropping to splicing where a series has two conventions.
+
+**Window.** The 2015 rationale no longer binds: most Canadian monthly targets rest on OECD editions whatever the start date, and RTD covers 2001+ via the API. Recommend the primary evaluation window **2001-01 to present** for both economies (OECD editions from 1999 allow a 2-year warm-up), with 2015-01 to present reported as the plan's original window, and results with and without 2020Q1 to 2021Q2. Sample sizes will still be small; report them with every statistic.
+
+**Origin.** 25th or next business day, information set strictly before the origin date (see section 3). If the owner prefers the 20th, adopt rule 2(a) and accept that the latest CPI is in the set in some months and not others.
+
+**Canadian data route.** Scripted access to StatCan is blocked from this machine. Options: (a) owner opens `https://www150.statcan.gc.ca/t1/wds/rest/getCodeSets` in a browser to confirm the block is bot-detection only; (b) accept the DBnomics mirror for the three GDP tables and OECD editions for everything else, with StatCan itself used only when reachable; (c) test from another network in Phase 1. We will not engineer around the Cloudflare challenge.
+
+**Models.** Keep the four planned models. Flag Moirai 2.0's non-commercial licence and TiRex's community licence for the owner's own assessment. Recommend adding TiRex-2 as a fifth model (Apache-2.0, second multivariate model); note its macro exposure via FRED-MD when interpreting Q2. Exclude TimesFM 3.0.
+
+**Open items carried forward from the first response.** OpenTimestamps stubbed in the registry dry run (recommended); GPU not used (recommended); the quarterly frequency of the consumer-spending target (owner's call).

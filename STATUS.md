@@ -128,15 +128,18 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Blocked or needing the owner
 
-- **Machine memory (resolved 2026-11-18):** earlier in the day Windows reported about 126.7 GB of a
-  131 GB commit limit in use while all processes together held about 29 GB, and the TimesFM
-  worker (925 MB checkpoint) crashed with an access violation at load. After the previous
-  Claude Code session process crashed, commit charge fell to about 38 GB with process commit
-  unchanged, and TimesFM ran through the orchestrator without incident. The leak is therefore
-  attributed to that session process, not to this project's workers. The memory pre-flight
-  (workers refuse to start below 2x the largest weight file + 600 MB of free commit) stays in
-  place; if commit charge climbs again, check `Get-Process` commit totals against
-  `Win32_OperatingSystem` before blaming the workers.
+- **Machine memory (cleared 2026-11-18, cause not identified):** earlier in the day Windows
+  reported about 126.7 GB of a 131 GB commit limit in use while all processes together held
+  about 29 GB, and the TimesFM worker (925 MB checkpoint) crashed with an access violation at
+  load. Between sessions, and without a reboot (last boot 2026-11-15), commit charge fell to
+  about 36-38 GB with process commit unchanged at 29 GB; the limit moved to 127.9 GB
+  (system-managed pagefile). The drop coincided with the previous Claude Code session
+  process crashing, but that process's own commit was small, so the roughly 90 GB was never
+  attributable to a visible process and the holder is unknown. TimesFM then ran through the
+  orchestrator without incident. The memory pre-flight (workers refuse to start below 2x the
+  largest weight file + 600 MB of free commit) stays in place; recurrence cannot be ruled
+  out. If it recurs, compare `Get-Process` commit totals with `Win32_OperatingSystem` and
+  check kernel pools (RAMMap) before blaming the workers.
 
 - HUMAN GATE 0 decisions: see `docs/feasibility.md` section 5.
 - StatCan access route (browser test by the owner, or accept mirror + OECD).

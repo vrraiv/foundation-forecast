@@ -76,6 +76,9 @@ def env_python(env: str) -> list[str]:
 def run_request(request_path: Path, response_path: Path, env: str, *, timeout: int = 7200) -> dict:
     """Run one worker on one request file. Returns the response dict (with wall time and the
     stderr tail added) or raises RuntimeError with the stderr tail."""
+    # never let a stale response from an earlier run stand in for this one
+    response_path.unlink(missing_ok=True)
+    response_path.with_suffix(".error.txt").unlink(missing_ok=True)
     t0 = time.perf_counter()
     proc = subprocess.run(
         [*env_python(env), str(WORKERS / f"run_{env}.py"), str(request_path), str(response_path)],

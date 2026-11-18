@@ -122,8 +122,17 @@ against outturns.
    "matrix not positive definite" or "infs or NaNs" now estimate, no cell went the other way, and
    169 cells still fail for input-data reasons that pre-date the fix (constant predictor columns
    92, non-finite input 67, empty panel 10; clustered in 2001, 2009-10 and 2017; `combo_bench`
-   is missing wherever a member is). Those 169 are a data-preparation item, not a model one, and
-   are left as recorded errors.
+   is missing wherever a member is). Cause, checked on one cell per cluster by rebuilding the
+   panel at the origin: the DFM takes the first `max_vars` monthly columns of the panel without
+   the coverage filter the BVAR applies, and at those origins one column has almost no in-vintage
+   observations, so standardisation fails or produces non-finite values: the Bank of Canada
+   policy-rate series `valet:B114039` (1 to 10 observations, constant, 2009-10), the 10-year
+   yield `valet:BD.CDN.10YR.DQ.YLD` (all missing, 2001), the exchange rate `valet:FXUSDCAD`
+   (1 observation, 2017). Remedy and decision for the owner: (a) leave these cells as recorded
+   errors (current state), or (b) give the DFM the same minimum-coverage rule as the BVAR, which
+   is a benchmark-code change (`BENCH_CODE_VERSION` 3, every benchmark cell recomputed, about
+   2.5 hours) and also alters the DFM input in cells that currently estimate fine whenever a
+   short column is dropped there. Not done without the owner.
 3. **Validity guard.** `backtest.validity` (config): a forecast is a numerical failure when a
    quantile or mean is non-finite, the estimator's log-likelihood is below -1e10, or the largest
    absolute quantile or mean exceeds 50 standard deviations of the model's own input history in
@@ -145,6 +154,17 @@ against outturns.
 4. **Cache key.** The live-data source (`latest`) was removed from a target's key on 2026-11-18
    because the backtest never reads it; this re-keyed every cell, so the two trial origins of
    Chronos-2 and Moirai are recomputed in the second pass.
+5. **Cache bookkeeping per cell (2026-11-18 evening, no effect on any value).** The done-check
+   used to work per (model, origin) and only verified the keys of cells present in the store, so
+   a target absent from the store was taken as done: Canadian core CPI was skipped as `blocked`
+   at every origin when the model stage started, and the planned second pass would have computed
+   nothing for it. Now the unit is the (origin, econ, target, input mode) cell; skipped cells
+   carry a skip key (target definition and data hashes) so that a stale skip is re-evaluated;
+   stage 1 writes the cell list (`todo.json`) and stage 3 and the benchmark writer replace only
+   those cells, keeping every other model's and cell's rows. On the stored benchmarks this
+   re-evaluates only keyless skipped cells (panel built, nothing estimated) plus the 41 origins
+   not yet recomputed; on the model store after the merge it adds the core CPI tasks and
+   re-evaluates the skips, with no model re-run.
 
 ## Run log
 

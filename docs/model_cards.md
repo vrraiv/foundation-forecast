@@ -89,24 +89,24 @@ See `data/smoke/smoke_<origin>.csv` (git-ignored) and the runtime table below, g
 `ffcast smoke --origin 2024-06-25`.
 
 <!-- RUNTIME TABLE START -->
-Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker; three-stage run (`ffcast smoke`, 2026-11-18, after the machine's commit charge was released). Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin and model.
+Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker; three-stage run (`ffcast smoke`, 2026-11-18, data built under the `conservative` OECD rule). Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin and model.
 
 | model | variant | tasks | mean s/task | max s/task | worker wall s | checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| naive | uni | 11 | 0.055 | 0.603 | - | all sane, step 1 aligned |
+| naive | uni | 11 | 0.056 | 0.617 | - | all sane, step 1 aligned |
 | ar | uni | 11 | 0.010 | 0.025 | - | all sane, step 1 aligned |
-| bvar | multi | 11 | 0.470 | 0.640 | - | all sane, step 1 aligned |
-| dfm | multi | 11 | 5.966 | 12.134 | - | all sane, step 1 aligned |
+| bvar | multi | 11 | 0.499 | 0.690 | - | all sane, step 1 aligned |
+| dfm | multi | 11 | 6.295 | 12.820 | - | all sane, step 1 aligned |
 | combo_bench | multi | 11 | 0.000 | 0.000 | - | all sane, step 1 aligned |
-| chronos2 | multi | 11 | 0.116 | 0.176 | 8.84 | all sane, step 1 aligned |
-| chronos2 | univa | 11 | 0.054 | 0.071 | (same worker) | all sane, step 1 aligned |
-| timesfm25 | univa | 11 | 0.181 | 0.187 | 7.39 | all sane, step 1 aligned |
-| tirex | univa | 11 | 0.427 | 0.436 | 10.92 | all sane, step 1 aligned |
-| tirex2 | multi | 11 | 0.452 | 0.698 | 13.74 | all sane, step 1 aligned |
-| tirex2 | univa | 11 | 0.140 | 0.145 | (same worker) | all sane, step 1 aligned |
-| moirai2 | univa | 11 | 0.015 | 0.019 | 5.78 | all sane, step 1 aligned |
+| chronos2 | multi | 9 | 0.130 | 0.197 | 9.47 | all sane, step 1 aligned |
+| chronos2 | univa | 11 | 0.058 | 0.073 | (same worker) | all sane, step 1 aligned |
+| timesfm25 | univa | 11 | 0.187 | 0.205 | 7.92 | all sane, step 1 aligned |
+| tirex | univa | 11 | 0.435 | 0.455 | 11.04 | all sane, step 1 aligned |
+| tirex2 | multi | 9 | 0.479 | 0.699 | 12.97 | all sane, step 1 aligned |
+| tirex2 | univa | 11 | 0.141 | 0.148 | (same worker) | all sane, step 1 aligned |
+| moirai2 | univa | 11 | 0.017 | 0.022 | 6.41 | all sane, step 1 aligned |
 
-Sane-magnitude and step-1 alignment checks: 132 passed, 0 failed (the only failing row is the blocked Canadian core CPI target). Every model's step-1 forecast refers to the same target period for every target. An earlier run of this table (commit 332625a) reported only the last model per variant because the smoke metadata was keyed without the model name; fixed and covered by `tests/test_smoke.py`.
+Sane-magnitude and step-1 alignment checks: 128 passed, 0 failed (the only failing row is the blocked Canadian core CPI target). Every model's step-1 forecast refers to the same target period for every target (for the foundation models this holds by construction, since the period comes from the shared panel; for the benchmarks it is read from each model's own output). Note: the multivariate task count is lower than in the same-month run because at this origin OECD edition 202405 is missing, so the Canadian unemployment panel keeps 4 instead of 6 conditioning variables. An earlier version of this table (commit 332625a) reported only the last model per variant because the smoke metadata was keyed without the model name; fixed and covered by `tests/test_smoke.py`.
 
 Projected backtest cost per origin (11 targets, two input modes): benchmarks about 4 minutes (dominated by the factor model), foundation models about 1 minute including worker start-up; about 130 monthly origins in the primary window.
 <!-- RUNTIME TABLE END -->

@@ -28,18 +28,27 @@ exclusion_windows:
   covid: ["2020-01", "2021-06"]   # report with and without
 
 vintage_sources:
-  # How a month-stamped OECD edition gets a vintage date. "same_month_eve": edition M is dated
-  # the day before the origin day of month M, so it is visible at that month's origin. This is
-  # an assumption about OECD publication timing (evidence: docs/data_quality.md section 4).
-  # "conservative": edition M is dated the 1st of M+1 (visible one origin later).
-  oecd_edition_rule: same_month_eve
+  # How a month-stamped OECD edition gets a vintage date. "conservative": edition M is dated
+  # the 1st of M+1, so it is visible from the origin of M+1 onwards. "same_month_eve": edition M
+  # is dated the day before the origin day of M and is visible at that month's origin.
+  # Owner decision 2026-11-18: conservative. The content evidence (docs/data_quality.md
+  # section 4) only bounds the edition CUT date from below (edition 202104 contains March 2021
+  # CPI, released 21 April 2021), not the publication date, so the same-month rule would rest on
+  # a margin of at most three days with no publication record behind it. same_month_eve stays
+  # available as a robustness variant (requires rerunning `ffcast data`).
+  oecd_edition_rule: conservative
   oecd_dataflow: "OECD.SDD.STES,DSD_STES_REVISIONS@DF_STES_REVISIONS,4.0"
   # Euro-area OECD editions are a splice of area codes; each edition exists under one code.
   oecd_area_codes: {CA: [CAN], EA: [EA18, EA19, EA20]}
   ecb_rtd_dataflow: "RTD"
   # A primary source is used at an origin only if its latest vintage is at most this many days
-  # old; otherwise the target's fallback source is used (see ffcast.data.targets).
-  max_staleness_days: {rtd: 100, oecd: 45, dbnomics: 130, pseudo: 45}
+  # old; otherwise the target's fallback source is used (see ffcast.data.targets). Principle:
+  # each limit tolerates exactly one missing release of the source. OECD under the conservative
+  # rule: the newest edition is dated the 1st of the origin month (about 24 days old at the
+  # 25th); one missing edition makes it 52-58 days old, two at least 83; limit 60. (Under
+  # same_month_eve the same principle gives 45: 1 day, then 29-35, then 59+.) Pseudo-vintages
+  # are dated the eve of the origin, so 45 tolerates one missed month there too.
+  max_staleness_days: {rtd: 100, oecd: 60, dbnomics: 130, pseudo: 45}
   # RTD keys downloaded for cross-checking OECD editions (precise dates to 2025-10 only).
   cross_check_rtd_keys: ["M.S0.Y.I_XCONS.X", "M.S0.Y.O_RTXMOTVD.X"]
   # OECD series downloaded although not a vintage source for a target (CPI non-revision check,
@@ -77,7 +86,12 @@ targets:
       latest: {source: statcan, table: "18100004"}
       transform: log_diff
       exclude_from_q1: true
-      blocked: "no vintage source, and the only latest-data source (StatCan 18-10-0004) refuses scripted clients; Valet CPI-XFET is a different measure"
+      # Owner-supplied StatCan files are read through `latest: {source: statcan_manual, ...}`
+      # (member selected by exact labels; the vector id is read from the file). The file supplied
+      # on 2026-11-18 is table 18-10-0256, which carries the ex-food-energy-and-indirect-taxes
+      # index (CPI-XFET) but not all-items excluding food and energy; the target stays blocked
+      # until 18-10-0004 is supplied or the owner redefines the measure.
+      blocked: "no vintage source; the latest-data source (StatCan 18-10-0004) refuses scripted clients and has not been supplied by hand; 18-10-0256 (supplied) and Valet carry only CPI-XFET, a different measure"
 
     unemp:
       name: Unemployment rate, LFS, SA

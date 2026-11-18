@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Block data, forecast and registry files from ever being committed (public repo).
 set -euo pipefail
-bad=$(git diff --cached --name-only --diff-filter=ACMR | grep -Ei '(^|/)(data|registry)/|\.(parquet|csv|csv\.gz|zip|ots|log|salt)$' || true)
+# Root-level data/ and registry/ only: src/ffcast/data and src/ffcast/registry are code.
+bad=$(git diff --cached --name-only --diff-filter=ACMR | grep -Ei '^(data|registry)/|\.(parquet|csv|csv\.gz|zip|ots|log|salt)$' || true)
 if [ -n "$bad" ]; then
   echo "pre-commit: refusing to commit data/forecast/registry files:" >&2
   echo "$bad" >&2

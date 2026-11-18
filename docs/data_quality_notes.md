@@ -32,8 +32,10 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
 - **Retail volume**: StatCan real-time tables inactive since 2026-03; OECD editions are the
   only vintage source. 900 deletes reflect the OECD trimming history in some editions.
 - **OECD edition 202104 contained March 2021 CPI**, which StatCan released on 2021-04-21.
-  This is the latest-in-month evidence for the edition snapshot date and bounds the
-  same-month visibility rule (origin on the 25th) to a margin of a few days.
+  This bounds the edition CUT date from below (on or after the 21st); it says nothing about
+  when the edition was published. The owner therefore chose the `conservative` rule
+  (2026-11-18): edition M is dated the 1st of M+1 and first used at the origin of M+1. The
+  `same_month_eve` dating is kept as a robustness variant (config switch; rerun `ffcast data`).
 
 ### Euro area
 

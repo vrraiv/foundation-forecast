@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 3 done; awaiting owner input before Phase 4). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 3 done; OECD rule decided; Canadian core CPI still blocked; Phase 4 next). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -37,11 +37,23 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   in-vintage history is at least 10 years. **Approved.**
 - Origin: 25th or next business day, information set strictly before the origin date.
   **Approved.**
-- OECD edition visibility rule: owner questioned the conservative rule; agent proposed that
-  edition M be treated as visible at the 25th-of-M origin (`same_month_eve`: the edition is
-  dated the eve of the origin). This is an assumption about OECD publication timing backed by
-  edition content (docs/data_quality.md section 4); there is no published OECD schedule to
-  check against. The conservative rule remains a config switch. **Pending owner confirmation.**
+- OECD edition visibility rule: **decided 2026-11-18: `conservative`** (edition M dated the 1st
+  of M+1, first used at the origin of M+1). The content evidence (edition 202104 contains March
+  2021 CPI, released 21 April 2021) bounds the edition cut date from below and says nothing
+  about publication, so the owner declined to rest the same-month rule on a margin of at most
+  three days. `same_month_eve` stays available as a variant. The OECD staleness limit moved from
+  45 to 60 days by the fixed principle "tolerate one missing edition" (ages at origins are 24-26
+  days normally, 52-57 with one edition missing, 85-87 with two; `configs/default.yaml`). Under
+  the new dating, compared with the old one (sweep of 311 origins 2001-2026): the resolved
+  source is unchanged at every origin for the RTD- and pseudo-vintage targets; for the
+  OECD-sourced targets the same source resolves but one edition later, so the newest observed
+  period is one month older at most origins (CA unemployment 120 of 143 origins since 2015, CA
+  retail 128 of 139, EA retail 119 of 143); around missing editions the "no source" origins move
+  by one month (CA retail 3 origins, EA retail 1) and for the pre-2012 Canadian GDP/consumption
+  fallback (OECD quarterly editions, sparse before 2012) 42 origins swap between "fallback" and
+  "no source". Smoke at 2024-06-25: step 1 moved from 2024-04 to 2024-02 for CA retail (edition
+  202405 is missing, so the June origin sees edition 202404) and from 2024-05 to 2024-04 for EA
+  unemployment (OECD fallback period).
 - Canadian data route: StatCan loads in the owner's browser after a Cloudflare challenge;
   scripted access still blocked on 2026-11-17 and 2026-11-18 (WDS, SDMX REST and the
   36100107-SDMX.zip all 403). Owner suggested the community MCP servers and the R package
@@ -61,7 +73,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Phase 2: every source is reduced to one change-log table (R/D rows dated by vintage), so
   `as_of` has a single semantics; full-snapshot sources are diffed into it with a 1e-9
   relative tolerance (OECD CSVs carry float noise such as 5.09999999999999).
-- Phase 2: OECD edition M is dated the 24th of M, the eve of the origin (`oecd_edition_rule: same_month_eve`).
+- Phase 2: OECD edition M is dated the 1st of M+1 (`oecd_edition_rule: conservative`, owner
+  decision 2026-11-18; the `same_month_eve` dating used until then is a variant).
   Evidence: in 334 Canadian editions only edition 202104 contained the previous month's CPI
   (released 2021-04-21); unemployment for M-1 (released first Friday) is present in 109
   editions. The conservative rule remains a config switch. Owner confirmation still pending.
@@ -146,11 +159,16 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Chrome extension was not connected in this session, so the agent could not run the
   browser test itself. Internet Archive downloads were denied by the session's permission
   classifier and were not retried.
-- Decisions needed before Phase 4: (1) Canadian core CPI: supply a StatCan 18-10-0004 extract
-  by hand (registered through `RawStore.register_manual`) or drop the target; (2) OECD
-  edition rule: the content evidence bounds the edition CUT date (edition 202104 was cut on or
-  after 21 April 2021), not the publication date; both rules (`same_month_eve`,
-  `conservative`) can be run as variants.
+- Canadian core CPI (still blocked): the owner-supplied file registered on 2026-11-18
+  (`data/raw/statcan-manual/2026-11-18/18100256-eng.zip`, sha256 515424b0...) is table
+  18-10-0256 (core measures, Bank of Canada definitions). It carries CPI-trim/median/common,
+  CPIX and "all-items excluding food, energy and the effect of indirect taxes" (CPI-XFET,
+  v1675033092, 1984-01 onward) but not "all-items excluding food and energy", so it does not
+  serve the target as defined. The loader for owner-supplied tables is in place
+  (`latest: {source: statcan_manual, table, member}`; member chosen by exact labels, vector
+  read from the file). Needed: table 18-10-0004 as `18100004-eng.zip` (the CSV "download
+  entire table" zip) placed anywhere under `data/raw/` and registered, or a decision to
+  redefine the measure as CPI-XFET.
 - Repository visibility: planning and probe docs are on a public remote; PLAN.md Gate 5
   expects private code. Owner to decide before Phase 1.
 

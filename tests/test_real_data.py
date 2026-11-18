@@ -48,7 +48,10 @@ def _yoy(s):
 def test_canada_gdp_oecd_edition_matches_statcan_release_growth(table):
     oe = "oecd:CA.Q.B1GQ_Q.XDC._T"
     db = "dbnomics:STATCAN/36100431/estim_24.price_1.sea_adj_1"
-    origin = dt.date(2024, 12, 26)
+    # Under the conservative OECD rule edition 202412 (dated 2025-01-01) is the first edition
+    # visible that contains 2024-Q3, released by StatCan on 2024-11-29; the DBnomics vintage of
+    # that release is the latest before this origin too, so the two histories must agree.
+    origin = dt.date(2025, 1, 27)
     a, b = as_of(table, [oe, db], origin).values()
     common = a.index.intersection(b.index)[-8:]
     np.testing.assert_allclose(_growth(a)[common], _growth(b)[common], atol=5e-3)
@@ -113,9 +116,9 @@ def test_canada_headline_cpi_is_unrevised_across_recent_editions(table):
         (
             "oecd:CA.M.TOVM.IX.G47",
             "2019-06",
-            dt.date(2019, 9, 26),
+            dt.date(2019, 10, 25),  # edition 201909, dated 2019-10-01 (conservative rule)
             111.53,
-            dt.date(2020, 9, 26),
+            dt.date(2020, 10, 26),  # edition 202009, dated 2020-10-01
             110.63,
         ),
         # Euro area

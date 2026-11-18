@@ -120,3 +120,41 @@ def test_oecd_edition_content_check(tmp_path: Path):
     p.write_text(OECD_CSV, encoding="utf-8")
     chk = oecd.edition_content_check(p)
     assert chk["lag_months"].tolist() == [2, 2, 2]
+
+
+def test_statcan_manual_latest_selects_one_vector_by_labels(tmp_path: Path):
+    import datetime as dt
+    import zipfile
+
+    import pytest
+
+    from ffcast.data.sources import statcan
+
+    csv = (
+        '"REF_DATE","GEO","DGUID","Products and product groups","UOM","UOM_ID","SCALAR_FACTOR",'
+        '"SCALAR_ID","VECTOR","COORDINATE","VALUE","STATUS","SYMBOL","TERMINATED","DECIMALS"\n'
+        '"2020-01","Canada","2016A000011124","All-items","2002=100","17","units","0","v41690973","2.2","136.8","","","","1"\n'
+        '"2020-01","Canada","2016A000011124","All-items excluding food and energy","2002=100","17","units","0","v41691233","2.9","131.0","","","","1"\n'
+        '"2020-02","Canada","2016A000011124","All-items excluding food and energy","2002=100","17","units","0","v41691233","2.9","131.5","","","","1"\n'
+        '"2020-03","Canada","2016A000011124","All-items excluding food and energy","2002=100","17","units","0","v41691233","2.9","","..","","","1"\n'
+        '"2020-01","Ontario","2016A000235","All-items excluding food and energy","2002=100","17","units","0","v41691999","9.9","130.0","","","","1"\n'
+    )
+    z = tmp_path / "18100004-eng.zip"
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("18100004.csv", "\ufeff" + csv)
+        zf.writestr("18100004_MetaData.csv", "x")
+    member = {"GEO": "Canada", "Products and product groups": "All-items excluding food and energy"}
+    table, sid = statcan.normalise_manual_latest(z, "18100004", member, dt.date(2026, 11, 18))
+    assert sid == "statcan:18100004:v41691233"
+    got = dict(zip(table["ref_period"], table["value"], strict=True))
+    assert got == {"2020-01": 131.0, "2020-02": 131.5}  # '..' row dropped, Ontario excluded
+    assert set(table["vintage_date"]) == {dt.date(2026, 11, 18)}
+    with pytest.raises(ValueError, match="available"):
+        statcan.select_member(
+            statcan.read_table_zip(z), {"GEO": "Canada", "Products and product groups": "Core"}
+        )
+    with pytest.raises(ValueError, match="vectors"):
+        statcan.select_member(
+            statcan.read_table_zip(z),
+            {"Products and product groups": "All-items excluding food and energy"},
+        )

@@ -1,6 +1,7 @@
-# Data and private registry never enter git
-data/
-registry/
+# Data and the private registry never enter git. Patterns are anchored to the repo root:
+# src/ffcast/data is code and must be tracked.
+/data/
+/registry/
 *.parquet
 *.csv
 *.ots
@@ -9,5 +10,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.hypothesis/
 *.log
 envs/*.done

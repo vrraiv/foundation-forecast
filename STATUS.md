@@ -176,6 +176,10 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   roughly 5 benchmark processes plus one model worker for hours, and the stop came at the moment
   stage 3 (then an in-memory merge of six million rows) was about to start.
 
+- **Owner, 2026-11-18 evening:** a vendor utility is suspected of leaking memory; the owner will
+  reboot, close Chrome and Steam, and start a fresh agent session before the restart. Another
+  Claude session must keep running and is not to be touched. Exact commands: `docs/backtest.md`,
+  Run log.
 - **Restart of the Phase 4 jobs (2026-11-18 15:28):** the harness stopped the model stage
   (complete, merge pending) and the benchmark recompute (269 of 310 origins) for machine-wide
   memory pressure and asked that they not be restarted without the owner. Order when restarted:

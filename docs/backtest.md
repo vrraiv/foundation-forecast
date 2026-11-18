@@ -180,6 +180,27 @@ against outturns.
   1 would otherwise see an empty model store and redo the seven-hour model stage; (2) the
   remaining 41 benchmark origins with `--skip-fm` and nothing running alongside; (3) the second
   pass (core CPI and the two re-keyed trial origins), then verify, score, SPF.
+- 2026-11-18 evening: the owner suspects a vendor utility leaking memory, will reboot, close
+  Chrome and Steam, and restart the agent session before the jobs restart (another Claude session
+  stays running). Runbook for the next session, one job at a time, from the repo root:
+
+  ```
+  uv run python -m ffcast.eval.backtest stage3 "{\"workdir\": \"C:\projects\foundation-forecast\data\backtest\work\20261118T075221\", \"note\": \"2026-11-18: core CPI (CPI-XFET) added after launch (owner approval); DFM em_initialization=false and validity guard after the DFM numerical breakdown; benchmarks recomputed under BENCH_CODE_VERSION 2\"}"
+  uv run ffcast backtest --window all --skip-fm --processes 4
+  uv run ffcast backtest --window all
+  uv run ffcast backtest --window all --verify 5
+  uv run python scripts/compare_bench_stores.py data/backtest/_backup_bench_20261118T122416
+  uv run ffcast score
+  uv run ffcast spf
+  ```
+
+  Expected: step 1 writes 310 model-store origins (every worker was ok) and reports the
+  foundation-model error count; step 2 reports 41 origins fully to do and keyless skips at the
+  rest, and estimates nothing new at the 269; step 3 adds the core CPI tasks for every model plus
+  the two re-keyed trial origins of Chronos-2 and Moirai, nothing else; step 5 must show zero
+  differing AR/BVAR/naive rows against the backup on all 310 origins (the writer now rewrites
+  every file). The guard-scope and DFM-coverage decisions (STATUS, "Blocked or needing the
+  owner") come before step 6.
 
 ## Private summary
 

@@ -1,0 +1,11 @@
+# Data and private registry never enter git
+data/
+registry/
+*.parquet
+*.csv
+*.ots
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/

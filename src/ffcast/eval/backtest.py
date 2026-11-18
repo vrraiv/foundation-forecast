@@ -1079,8 +1079,12 @@ def verify_bench(
     stored = stored[stored["model"].isin(["naive", "ar", "bvar", "dfm", "combo_bench"])]
     tmp = root / "_verify"
     res = {"origins": [o.isoformat() for o in origins], "mismatches": []}
+    modes = list(cfg.backtest["input_modes"])
+    every_cell = {(e, t, mode) for e in cfg.economies for t in cfg.targets[e] for mode in modes}
     for o in origins:
-        stage1_origin(o, list(cfg.backtest["input_modes"]), True, [], str(tmp))
+        for sub in ("forecasts", "meta"):
+            (tmp / sub / "bench" / f"{o.isoformat()}.parquet").unlink(missing_ok=True)
+        stage1_origin(o, modes, every_cell, {}, str(tmp))
         new = pd.read_parquet(tmp / "forecasts" / "bench" / f"{o.isoformat()}.parquet")
         old = stored[stored["origin"] == o.isoformat()]
         keys = ["econ", "target", "model", "variant", "input_mode", "step", "quantile"]

@@ -209,6 +209,25 @@ def score() -> None:
     typer.echo(f"wrote {write_bias_tables()}")
 
 
+@app.command()
+def spf(
+    models: str = typer.Option("", help="Comma-separated foundation models (default all)"),
+    skip_bench: bool = typer.Option(False, help="Do not run the classical benchmarks"),
+    skip_models: bool = typer.Option(False, help="Only rebuild tables from stored model points"),
+) -> None:
+    """ECB SPF comparison (Phase 4, Q4): survey windows, matched model runs at the survey
+    deadlines, outturns in survey definitions and fixed-event regressions. Tables stay under
+    data/backtest/tables."""
+    from .eval.spf import run_spf
+
+    rep = run_spf(
+        models=[m for m in models.split(",") if m] or None,
+        run_bench=not skip_bench,
+        skip_models=skip_models,
+    )
+    typer.echo(str(rep))
+
+
 @app.command("registry-run")
 def registry_run(origin: str = typer.Argument("", help="Origin date YYYY-MM-DD")) -> None:
     """Run one live registry origin (Phase 5)."""

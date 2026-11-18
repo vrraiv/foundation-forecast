@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.8",
     "typer>=0.12",
     "huggingface-hub>=0.30",
+    "pypdf>=5",
 ]
 
 [project.optional-dependencies]

@@ -840,6 +840,8 @@ def write_run_manifest(
         m["first_config_sha256"] = old.get("first_config_sha256", old.get("config_sha256"))
         if m["first_config_sha256"] != m["config_sha256"]:
             m["config_changed_since_first_run"] = True
+        if old.get("config_change_note") and "config_change_note" not in m:
+            m["config_change_note"] = old["config_change_note"]
     else:
         m["first_written_utc"] = m["written_utc"]
         m["first_config_sha256"] = m["config_sha256"]
@@ -934,9 +936,12 @@ if __name__ == "__main__":
         rep.update(build_outturns())
         rep.update(
             {
-                "manifest": write_run_manifest(extra={"last_stage3_workdir": spec["workdir"]})[
-                    "config_sha256"
-                ]
+                "manifest": write_run_manifest(
+                    extra={
+                        "last_stage3_workdir": spec["workdir"],
+                        **({"config_change_note": spec["note"]} if spec.get("note") else {}),
+                    }
+                )["config_sha256"]
             }
         )
         print(json.dumps(rep))

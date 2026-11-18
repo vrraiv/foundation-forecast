@@ -124,6 +124,9 @@ def backtest(
     skip_fm: bool = typer.Option(False, help="Do not run the foundation models"),
     processes: int = typer.Option(0, help="Benchmark processes (default from config)"),
     force: bool = typer.Option(False, help="Recompute even when the cache key matches"),
+    note: str = typer.Option(
+        "", help="Recorded in run_manifest.json (e.g. why the config changed since the first run)"
+    ),
     verify: int = typer.Option(
         0, help="Recompute benchmarks at N stored origins and compare instead of running"
     ),
@@ -164,6 +167,7 @@ def backtest(
         "models": [] if skip_fm else ([m for m in models.split(",") if m] or None),
         "processes": processes or None,
         "force": force,
+        "note": note,
     }
     typer.echo(f"{len(origins)} origins {origins[0]} .. {origins[-1]}; workdir {workdir}")
     r1 = subprocess.run(

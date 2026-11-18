@@ -17,6 +17,7 @@ import datetime as dt
 import hashlib
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -75,18 +76,40 @@ def fetch_table(pid: str, out: Path) -> dict:
     return rec
 
 
+def fetch_with_retries(pid: str, out: Path, waits: list[int]) -> dict:
+    """The WDS answers scripted clients intermittently (the owner's other repository saw a 403
+    on 2026-11-13 and success on 2026-11-14). One attempt, then one more after each wait in
+    `waits` (seconds); every attempt is recorded."""
+    attempts = []
+    for i, wait in enumerate([0, *waits]):
+        if wait:
+            time.sleep(wait)
+        rec = fetch_table(pid, out)
+        attempts.append(
+            {k: rec.get(k) for k in ("fetched_at_utc", "link_status", "file_status", "error")}
+        )
+        if "sha256" in rec:
+            rec["attempts"] = attempts
+            return rec
+        print(f"  {pid}: attempt {i + 1} failed ({rec.get('error', '')[:60]})", flush=True)
+    rec["attempts"] = attempts
+    return rec
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
+    ap.add_argument("--waits", default="60,120,300,600,900", help="seconds between retries")
     ap.add_argument("pids", nargs="+")
     a = ap.parse_args()
+    waits = [int(w) for w in a.waits.split(",") if w.strip()]
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     pids = [p.strip() for arg in a.pids for p in arg.split(",") if p.strip()]
     bad = [p for p in pids if not (p.isdigit() and len(p) == 8)]
     if bad:
         sys.exit(f"product ids must be 8 digits: {bad}")
-    records = [fetch_table(p, out) for p in pids]
+    records = [fetch_with_retries(p, out, waits) for p in pids]
     (out / "manifest.json").write_text(
         json.dumps({"source": WDS, "tables": records}, indent=1), encoding="utf-8"
     )

@@ -12,6 +12,10 @@ on:
         description: "Comma-separated StatCan product ids (8 digits)"
         type: string
         default: "18100004,36100107,36100104,14100287,20100067,36100431"
+      waits:
+        description: "Seconds between retries per table (the WDS answers intermittently)"
+        type: string
+        default: "60,120,300,600,900"
 
 permissions:
   contents: read
@@ -19,14 +23,14 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - name: Fetch the tables
-        run: python -I scripts/statcan_fetch.py --out statcan_out "${{ inputs.tables }}"
+        run: python -I scripts/statcan_fetch.py --out statcan_out --waits "${{ inputs.waits }}" "${{ inputs.tables }}"
         continue-on-error: true
       - name: Show the manifest
         run: cat statcan_out/manifest.json

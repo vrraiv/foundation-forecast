@@ -22,13 +22,21 @@ check: lint test
 data:
     uv run ffcast data
 
-# Run the historical backtest (Phase 4)
+# Run the historical backtest over every origin, both windows (Phase 4)
 backtest:
-    uv run ffcast backtest
+    uv run ffcast backtest --window all
 
-# Regenerate scoring tables (Phase 4)
+# Recompute the benchmarks at 5 stored origins and compare exactly
+verify:
+    uv run ffcast backtest --verify 5
+
+# Regenerate every scoring table and the private summary (Phase 4)
 score:
     uv run ffcast score
+
+# ECB SPF comparison: matched model runs at the survey deadlines, then tables (Phase 4, Q4)
+spf:
+    uv run ffcast spf
 
 # Run one live registry origin (Phase 5)
 registry-run origin="":

@@ -192,3 +192,87 @@ def test_hac_ols_recovers_slope():
         and n == 500
         and 0 < se < 0.1
     )
+
+
+def test_summary_builds_from_synthetic_tables(tmp_path):
+    """The Gate 4 summary renders every section from CSVs alone, with no store present, and the
+    markdown table helper formats numbers, booleans and empties consistently."""
+    from ffcast.eval import summary
+
+    d = tmp_path / "tables"
+    d.mkdir()
+    rows = []
+    for model, var in [("ar", "univariate"), ("chronos2", "univariate"), ("bvar", "multivariate")]:
+        for h in (1, 3):
+            for mode in ("realtime", "revised"):
+                for split in ("all", "pre", "post"):
+                    rows.append(
+                        dict(
+                            econ="CA",
+                            target="cpi",
+                            freq="M",
+                            horizon=h,
+                            model=model,
+                            variant=var,
+                            input_mode=mode,
+                            outturn="first_release",
+                            sample="full",
+                            window="primary",
+                            split=split,
+                            n=50,
+                            rmsfe=0.5,
+                            mae=0.4,
+                            bias=0.01,
+                            wql=0.3,
+                            coverage80=0.8,
+                            n_vs_ar=50,
+                            rel_rmsfe=1.0 if model == "ar" else 0.9,
+                            rel_mae=1.0 if model == "ar" else 0.95,
+                            dm_stat=None if model == "ar" else -1.5,
+                            dm_p=None if model == "ar" else 0.13,
+                        )
+                    )
+    pd.DataFrame(rows).to_csv(d / "scores.csv", index=False)
+    pd.DataFrame(
+        [
+            dict(
+                econ="CA",
+                target="cpi",
+                freq="M",
+                horizon=1,
+                input_mode="realtime",
+                outturn="first_release",
+                sample="full",
+                window="primary",
+                model="ar",
+                variant="univariate",
+                n=50,
+                mcs_p=0.5,
+                in_mcs90=True,
+            )
+        ]
+    ).to_csv(d / "mcs.csv", index=False)
+    (d / "bias_fixed_event.csv").write_text(
+        "econ,target,model,variant,input_mode,outturn,n,beta,se_hac,t,level\n"
+        "CA,cpi,ar,univariate,realtime,first_release,40,0.2,0.1,2.0,per_target\n"
+    )
+    text = summary.build_summary(root=tmp_path)
+    for heading in (
+        "## 1. Run bookkeeping",
+        "## 2. Coverage",
+        "## 3. Outturns",
+        "### CA / cpi",
+        "**Relative RMSFE to AR**",
+        "**Model confidence set (90%) membership**",
+        "### 5.1 Q1",
+        "### 5.3 Q2",
+        "## 6. Q4",
+        "## 7. Q4: ECB SPF",
+    ):
+        assert heading in text, heading
+    assert "| chronos2 / univariate | 0.900 | 0.900 |" in text
+    assert "_(no run_manifest.json)_" in text and "_(no meta rows)_" in text
+    t = summary.md_table(pd.DataFrame({"a": [1.0, float("nan")], "b": [True, "x"]}))
+    assert t.splitlines()[2] == "| 1 | yes |" and t.splitlines()[3] == "|  | x |"
+    p = summary.write_summary(root=tmp_path)
+    assert p.name == "SUMMARY.md" and p.read_text(encoding="utf-8").startswith("# Backtest")

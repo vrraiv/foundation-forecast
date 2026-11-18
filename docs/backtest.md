@@ -1,8 +1,12 @@
 # Backtest harness (Phase 4)
 
 How forecasts are produced, stored and scored. Rules were fixed in `configs/default.yaml`
-(`backtest`, `scoring`) and committed before the first full run on 2026-11-18. Results live under
-`data/backtest/` (git-ignored, private until HUMAN GATE 4); this document has no numbers.
+(`backtest`, `scoring`) and committed before the first full run on 2026-11-18. One change was
+made after the run started and before any result was read: the Canadian core CPI target was
+redefined as CPI-XFET from an owner-supplied table (owner approval 2026-11-18,
+`docs/data_quality_notes.md`); it was computed in a second pass that the cache restricted to that
+target, and `run_manifest.json` flags the config change. Results live under `data/backtest/`
+(git-ignored, private until HUMAN GATE 4); this document has no numbers.
 
 ## Run
 
@@ -92,7 +96,20 @@ months later. Regressions: individual respondents pooled with forecaster fixed e
 consensus mean, each model, and the cross-model mean, on the same rounds and targets. TimesFM's
 `max_horizon` is raised to the SPF horizon for these runs only (recorded in the request file).
 
+## Private summary
+
+`ffcast score` also writes `data/backtest/tables/SUMMARY.md` (`ffcast.eval.summary`): run
+bookkeeping (config hashes, weights digests, verify result), coverage and skip reasons, outturn
+counts, the headline slice (real-time input, first-release outturn, full sample, primary window,
+stationary variants, configured horizons: relative RMSFE and MAE to AR, Diebold-Mariano p-values,
+weighted quantile loss, coverage, model-confidence-set membership), one view per plan question
+(real-time versus revised, outturn definition, pre/post weights date and training cutoff,
+ex-COVID, extension window, levels variant), and the Q4 regressions including the SPF table when
+present. The slices were fixed and committed before any foundation-model result existed. Tables
+only, no interpretation; the file stays under `data/`.
+
 ## Not covered
 
-Canadian core CPI (blocked, no data). Canada has no public individual-level survey, so the
-survey comparison is euro area only (PLAN section 5).
+Canadian core CPI has pseudo-vintages only (unrevised by convention), so it has no `revised`
+input mode and is excluded from Q1. Canada has no public individual-level survey, so the survey
+comparison is euro area only (PLAN section 5).

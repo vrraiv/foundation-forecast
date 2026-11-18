@@ -941,6 +941,12 @@ if __name__ == "__main__":
         )
         print(json.dumps(rep))
     elif stage == "verify":
-        print(json.dumps(verify_bench([dt.date.fromisoformat(o) for o in spec["origins"]])))
+        res = verify_bench([dt.date.fromisoformat(o) for o in spec["origins"]])
+        res["verified_utc"] = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+        stamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
+        (BACKTEST_ROOT / f"verify_{stamp}.json").write_text(json.dumps(res, indent=1))
+        print(json.dumps(res))
+        if res["mismatches"]:
+            raise SystemExit(3)
     else:
         raise SystemExit("usage: backtest.py stage1|stage3|verify JSON")

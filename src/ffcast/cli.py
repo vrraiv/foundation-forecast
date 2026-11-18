@@ -207,6 +207,14 @@ def score() -> None:
     d = write_tables(tables)
     typer.echo(f"wrote {d} ({', '.join(f'{k}={len(v)}' for k, v in tables.items())})")
     typer.echo(f"wrote {write_bias_tables()}")
+    # The SPF table is rebuilt from stored model points when an SPF run exists, so that `just
+    # score` regenerates every table; the model runs themselves need `ffcast spf`.
+    from .eval.spf import SPF_ROOT, run_spf
+    from .eval.summary import write_summary
+
+    if (SPF_ROOT / "work" / "task_meta.json").exists():
+        typer.echo(f"spf tables: {run_spf(skip_models=True)}")
+    typer.echo(f"wrote {write_summary()}")
 
 
 @app.command()

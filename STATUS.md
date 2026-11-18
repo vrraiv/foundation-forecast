@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 3 done except TimesFM smoke; awaiting owner input before Phase 4). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 3 done; awaiting owner input before Phase 4). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -10,7 +10,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
-| 3 Models and benchmarks | **Done except TimesFM.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and Chronos-2, TiRex, TiRex-2 and Moirai 2.0 pass every sane-magnitude and step-1 alignment check on 11 targets (79 checks); realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. TimesFM 2.5 crashes while loading its 925 MB checkpoint under the machine's low free commit charge (below); it ran correctly from a bare shell. Canadian core CPI blocked (no public scripted source). |
+| 3 Models and benchmarks | **Done.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and all five foundation models (Chronos-2, TimesFM 2.5, TiRex, TiRex-2, Moirai 2.0; 12 model-variant combinations) pass every sane-magnitude and step-1 alignment check on 11 targets (132 checks); step 1 refers to the same target period across models; reruns byte-identical. Realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. Canadian core CPI blocked (no public scripted source). |
 | 4 Backtest and scoring | Not started |
 | 5 Live registry | Not started |
 
@@ -43,8 +43,12 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   edition content (docs/data_quality.md section 4); there is no published OECD schedule to
   check against. The conservative rule remains a config switch. **Pending owner confirmation.**
 - Canadian data route: StatCan loads in the owner's browser after a Cloudflare challenge;
-  scripted access still blocked on 2026-11-17 (WDS and the 36100107-SDMX.zip both 403).
-  Owner may run extraction scripts manually; retry from the agent on later days. **Pending.**
+  scripted access still blocked on 2026-11-17 and 2026-11-18 (WDS, SDMX REST and the
+  36100107-SDMX.zip all 403). Owner suggested the community MCP servers and the R package
+  `cansim`: tested 2026-11-18, all blocked (details in `docs/probes/statcan.md` section 1.5);
+  the hosted MCP instance on Render gets the same 403 from its own network, so the block is
+  not specific to this machine. Remaining routes: owner-run browser downloads registered with
+  `RawStore.register_manual`, or the DBnomics mirror + OECD. **Pending.**
 - Models: four planned plus TiRex-2; TimesFM 3.0 excluded. Owner reviewing Moirai and TiRex
   licences. **Approved subject to licence review.**
 - Repository visibility and gate strictness: owner will revise PLAN.md gates. **Pending.**
@@ -124,23 +128,23 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Blocked or needing the owner
 
-- **Machine memory (2026-11-18):** Windows reports about 126.7 GB of a 131 GB commit limit in
-  use while all processes together hold about 29 GB and kernel pools about 6 GB; some 90 GB of
-  commit is held outside visible processes. With about 4 GB free, the TimesFM worker (925 MB
-  checkpoint) crashes with an access violation whenever the orchestrator process holds a few
-  hundred MB more (importing pandas is enough), while it runs fine from a bare shell. Workers
-  now refuse to start below 4 GB of free commit with a clear message. The owner should look at
-  what holds the commit (a reboot, or `wsl --shutdown`, are the usual fixes); the agent did not
-  restart anything.
+- **Machine memory (resolved 2026-11-18):** earlier in the day Windows reported about 126.7 GB of a
+  131 GB commit limit in use while all processes together held about 29 GB, and the TimesFM
+  worker (925 MB checkpoint) crashed with an access violation at load. After the previous
+  Claude Code session process crashed, commit charge fell to about 38 GB with process commit
+  unchanged, and TimesFM ran through the orchestrator without incident. The leak is therefore
+  attributed to that session process, not to this project's workers. The memory pre-flight
+  (workers refuse to start below 2x the largest weight file + 600 MB of free commit) stays in
+  place; if commit charge climbs again, check `Get-Process` commit totals against
+  `Win32_OperatingSystem` before blaming the workers.
 
 - HUMAN GATE 0 decisions: see `docs/feasibility.md` section 5.
 - StatCan access route (browser test by the owner, or accept mirror + OECD).
 - Chrome extension was not connected in this session, so the agent could not run the
   browser test itself. Internet Archive downloads were denied by the session's permission
   classifier and were not retried.
-- Decisions needed before Phase 4: (1) machine memory (reboot or `wsl --shutdown`) so the
-  TimesFM smoke run can complete; (2) Canadian core CPI: supply a StatCan 18-10-0004 extract
-  by hand (registered through `RawStore.register_manual`) or drop the target; (3) OECD
+- Decisions needed before Phase 4: (1) Canadian core CPI: supply a StatCan 18-10-0004 extract
+  by hand (registered through `RawStore.register_manual`) or drop the target; (2) OECD
   edition rule: the content evidence bounds the edition CUT date (edition 202104 was cut on or
   after 21 April 2021), not the publication date; both rules (`same_month_eve`,
   `conservative`) can be run as variants.

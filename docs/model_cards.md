@@ -7,8 +7,8 @@ Inference settings are frozen in `configs/default.yaml` (`models.settings`) and 
 `workers/_protocol.md`. All models run zero-shot on CPU, one worker process per model
 environment (`envs/<env>/uv.lock`), seed 0, 4 threads, deterministic algorithms where
 PyTorch supports them; a rerun of the same request produced byte-identical output for Chronos-2,
-TiRex, TiRex-2 and Moirai 2.0 on a synthetic task on 2026-11-18 (TimesFM 2.5 not yet checked
-through the orchestrator, see STATUS.md).
+TiRex, TiRex-2 and Moirai 2.0 on a synthetic task and for TimesFM 2.5 and Chronos-2 on the
+real smoke requests (11 and 22 tasks) on 2026-11-18.
 
 | Model | Hugging Face ID | Revision (sha) | Weight file date | Release date (HF repo created) | Licence | Package (locked) | Variants |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -89,20 +89,24 @@ See `data/smoke/smoke_<origin>.csv` (git-ignored) and the runtime table below, g
 `ffcast smoke --origin 2024-06-25`.
 
 <!-- RUNTIME TABLE START -->
-Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker; three-stage run (`ffcast smoke`). Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin.
+Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker; three-stage run (`ffcast smoke`, 2026-11-18, after the machine's commit charge was released). Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin and model.
 
 | model | variant | tasks | mean s/task | max s/task | worker wall s | checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| naive | uni | 11 | 0.054 | 0.594 | - | all sane, step 1 aligned |
-| ar | uni | 11 | 0.010 | 0.026 | - | all sane, step 1 aligned |
-| bvar | multi | 11 | 0.466 | 0.655 | - | all sane, step 1 aligned |
-| dfm | multi | 11 | 5.963 | 12.044 | - | all sane, step 1 aligned |
-| combo_bench | multi | 11 | 0.000 | 0.000 | (same worker) | all sane, step 1 aligned |
-| tirex2 | multi | 11 | 0.457 | 0.711 | (same worker) | all sane, step 1 aligned |
-| moirai2 | univa | 11 | 0.016 | 0.020 | 5.75 | all sane, step 1 aligned |
-| timesfm25 | uni | 0 | - | - | - | **not run**: the worker passed the memory pre-flight but crashed while loading the 925 MB checkpoint (machine commit charge about 3.7 GB free at start; see STATUS.md). Verified on a synthetic task from a bare shell the same day (load 29 s, 0.2 s per task). |
+| naive | uni | 11 | 0.055 | 0.603 | - | all sane, step 1 aligned |
+| ar | uni | 11 | 0.010 | 0.025 | - | all sane, step 1 aligned |
+| bvar | multi | 11 | 0.470 | 0.640 | - | all sane, step 1 aligned |
+| dfm | multi | 11 | 5.966 | 12.134 | - | all sane, step 1 aligned |
+| combo_bench | multi | 11 | 0.000 | 0.000 | - | all sane, step 1 aligned |
+| chronos2 | multi | 11 | 0.116 | 0.176 | 8.84 | all sane, step 1 aligned |
+| chronos2 | univa | 11 | 0.054 | 0.071 | (same worker) | all sane, step 1 aligned |
+| timesfm25 | univa | 11 | 0.181 | 0.187 | 7.39 | all sane, step 1 aligned |
+| tirex | univa | 11 | 0.427 | 0.436 | 10.92 | all sane, step 1 aligned |
+| tirex2 | multi | 11 | 0.452 | 0.698 | 13.74 | all sane, step 1 aligned |
+| tirex2 | univa | 11 | 0.140 | 0.145 | (same worker) | all sane, step 1 aligned |
+| moirai2 | univa | 11 | 0.015 | 0.019 | 5.78 | all sane, step 1 aligned |
 
-Sane-magnitude and step-1 alignment checks: 77 passed, 0 failed (the only failing row is the blocked Canadian core CPI target).
+Sane-magnitude and step-1 alignment checks: 132 passed, 0 failed (the only failing row is the blocked Canadian core CPI target). Every model's step-1 forecast refers to the same target period for every target. An earlier run of this table (commit 332625a) reported only the last model per variant because the smoke metadata was keyed without the model name; fixed and covered by `tests/test_smoke.py`.
 
 Projected backtest cost per origin (11 targets, two input modes): benchmarks about 4 minutes (dominated by the factor model), foundation models about 1 minute including worker start-up; about 130 monthly origins in the primary window.
 <!-- RUNTIME TABLE END -->

@@ -131,6 +131,25 @@ The Wayback CDX index answered and lists archived copies of the full-table zips 
 
 ---
 
+### 1.5 Re-test 2026-11-18 (owner-suggested routes)
+
+| Route | Result |
+|---|---|
+| `https://www150.statcan.gc.ca/t1/wds/sdmx/statcan/rest/dataflow/StatCan/DF_18100004` (SDMX REST), plain curl, identified client string | 403, `Cf-Mitigated: challenge` |
+| `https://www150.statcan.gc.ca/t1/wds/rest/getAllCubesListLite` (WDS) | 403, challenge |
+| `https://www150.statcan.gc.ca/n1/tbl/sdmx/36100107-SDMX.zip` | 403, challenge |
+| Hosted community MCP server `mcp-statcan.onrender.com/mcp` (Aryan-Jhaveri/mcp-statcan v0.19.0, MIT; wraps WDS + SDMX REST with plain HTTP, no browser emulation), tool `get_sdmx_data` for 18100004 | tool error: `403 Forbidden` for `.../sdmx/statcan/rest/structure/Data_Structure_18100004`, i.e. StatCan blocks the Render host too |
+| R package `cansim` 0.4.4 (local R 4.5.1), `get_cansim_vector("v41690973")` | "Problem downloading data, returned status code 403" |
+| npm `statcan-mcp` | not run: same WDS endpoints, no reason to expect a different outcome |
+
+Conclusion: the Cloudflare rule on the `www150` zone blocks every non-browser client, from this
+network and from a cloud host, on both days tested. None of the wrappers (MCP servers, `cansim`,
+`stats_can`) does anything a plain HTTP client does not, so they inherit the block. The
+remaining routes are unchanged: (a) the owner downloads the files in a browser and the agent
+registers them with `RawStore.register_manual` (hash-pinned, labelled `manual`); (b) DBnomics
+mirror + OECD editions. Not attempted and not proposed: browser-emulation or challenge-solving
+clients, which would amount to circumventing the site's bot protection.
+
 ## 2. Real-time data tables: the full list, with status
 
 List page: `https://www.statcan.gc.ca/en/dai/btd/rct` (fetched OK three times; "Date modified: 2025-12-16"). Table 1 verbatim, plus open.canada.ca frequency, last published date and status (probe date 2026-11-17):

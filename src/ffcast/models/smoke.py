@@ -228,7 +228,8 @@ def stage1(
                         continue
                 tid = f"{econ}.{tname}.{variant}"
                 tasks.append(make_task(tid, hist, p.freq, horizon, qs))
-                task_meta[tid] = {
+                task_meta[f"{mname}:{tid}"] = {  # keyed per model: tids repeat across models
+                    "tid": tid,
                     "econ": econ,
                     "target": tname,
                     "model": mname,
@@ -287,8 +288,8 @@ def stage3(workdir: Path, out_csv: Path) -> pd.DataFrame:
     status_file = workdir / "responses" / "_status.json"
     status = json.loads(status_file.read_text(encoding="utf-8")) if status_file.exists() else {}
     by_model: dict[str, list[str]] = {}
-    for tid, m in meta.items():
-        by_model.setdefault(m["model"], []).append(tid)
+    for key, m in meta.items():
+        by_model.setdefault(m["model"], []).append(key)
     for mname, tids in by_model.items():
         rp = workdir / "responses" / f"{mname}.json"
         if not rp.exists():
@@ -297,8 +298,9 @@ def stage3(workdir: Path, out_csv: Path) -> pd.DataFrame:
             continue
         resp = json.loads(rp.read_text(encoding="utf-8"))
         req = json.loads((workdir / "requests" / f"{mname}.json").read_text(encoding="utf-8"))
-        for tid in tids:
-            m = meta[tid]
+        for key in tids:
+            m = meta[key]
+            tid = m["tid"]
             r = resp["results"].get(tid)
             if r is None:
                 err = resp["errors"].get(tid, "missing")[:200]

@@ -292,7 +292,10 @@ models:
     # Mixed-frequency dynamic factor model (statsmodels DynamicFactorMQ), monthly block plus
     # quarterly variables, factors and lag order fixed in advance, EM estimation on the
     # ragged-edge panel; quantiles from the Gaussian forecast distribution.
-    dfm: {kind: dynamic_factor_mq, factors: 2, factor_order: 2, idiosyncratic_ar1: true, max_vars: 12, maxiter: 100}
+    # em_initialization: statsmodels' default EM start (true) produced numerically broken fits at
+    # 52 of 5,200 cells in the first full run (log-likelihood about -1e54); see docs/backtest.md
+    # (Deviations) for the diagnosis and the value chosen on numerical validity alone.
+    dfm: {kind: dynamic_factor_mq, factors: 2, factor_order: 2, idiosyncratic_ar1: true, max_vars: 12, maxiter: 100, em_initialization: true}
     # Estimation rule for all benchmarks: use every observation in the vintage, no COVID dummies
     # or sample splits; the exclusion window applies to scoring only.
     combo_bench: {kind: equal_weight, of: [ar, bvar, dfm]}
@@ -344,6 +347,13 @@ backtest:
   # series used, and the weights digest; a rerun must reproduce cached values exactly
   # (`ffcast backtest --verify` recomputes a sample and compares).
   cache: data/backtest
+  # Numerical-validity guard (added 2026-11-18 after the first full run; recorded deviation). A
+  # forecast is a numerical failure, stored as status `error` and never as values, when any
+  # quantile or mean is non-finite, when the estimator's log-likelihood is below min_llf, or
+  # when |quantile or mean| exceeds max_abs_sd_multiple standard deviations of the model's own
+  # input history in the space it forecast in. Sane forecasts are within a few sd; the failures
+  # seen were 1e14 to 1e97, so the threshold is orders of magnitude from both.
+  validity: {max_abs_sd_multiple: 50, min_llf: -1.0e10}
 
 scoring:
   quantiles: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]

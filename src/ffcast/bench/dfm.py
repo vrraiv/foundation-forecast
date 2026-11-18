@@ -26,12 +26,17 @@ class DynamicFactorMQBench:
         idiosyncratic_ar1: bool = True,
         max_vars: int = 20,
         maxiter: int = 200,
+        em_initialization: bool = True,
     ) -> None:
         self.factors = factors
         self.factor_order = factor_order
         self.idiosyncratic_ar1 = idiosyncratic_ar1
         self.max_vars = max_vars
         self.maxiter = maxiter
+        # statsmodels' EM initialisation (PCA on the panel with missing values filled) broke down
+        # on panels with long leading stretches where the target is unobserved and on columns
+        # with very few observations (2026-11-18, 52 of 5,200 cells); the option is in config.
+        self.em_initialization = em_initialization
 
     def forecast(
         self,
@@ -61,7 +66,9 @@ class DynamicFactorMQBench:
                 idiosyncratic_ar1=self.idiosyncratic_ar1,
                 standardize=True,
             )
-            res = mod.fit(disp=False, maxiter=self.maxiter)
+            res = mod.fit(
+                disp=False, maxiter=self.maxiter, em_initialization=self.em_initialization
+            )
             # Steps refer to the periods after the target's last observation; the panel may
             # extend beyond it (ragged edge), in which case the first steps are in-sample
             # predictions of the missing target values from the Kalman smoother/filter.

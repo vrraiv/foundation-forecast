@@ -46,6 +46,43 @@ from .store import (
 
 REPO = Path(__file__).resolve().parents[3]
 
+# Bumped when the benchmark code changes in a way that alters results, so that stored benchmark
+# cells are recomputed while foundation-model keys stay untouched. History:
+#   1: first full run, 2026-11-18 07:52.
+#   2: numerical-validity guard; DFM estimated with `em_initialization` from config (the
+#      statsmodels default initialisation broke down at 52 of 5,200 cells: log-likelihood about
+#      -1e54, forecasts up to 1e97; found by the benchmark-only scoring pass of 2026-11-18).
+BENCH_CODE_VERSION = 2
+
+DEFAULT_VALIDITY = {"max_abs_sd_multiple": 50.0, "min_llf": -1.0e10}
+
+
+def validity_rule(cfg: Config) -> dict:
+    return {**DEFAULT_VALIDITY, **cfg.backtest.get("validity", {})}
+
+
+def invalid_reason(
+    values, mean, history_sd: float, llf: float | None = None, rule: dict | None = None
+) -> str | None:
+    """Why a forecast is a numerical failure, or None. A failure is a non-finite value, a
+    log-likelihood below `min_llf` (estimation broke down) or a quantile or mean whose absolute
+    size exceeds `max_abs_sd_multiple` standard deviations of the model's own input history (in
+    the space the model forecast in). Failures are stored as status `error`, never as values."""
+    rule = {**DEFAULT_VALIDITY, **(rule or {})}
+    v = np.asarray(values, dtype=float)
+    parts = [v] if mean is None else [v, np.asarray(mean, dtype=float)]
+    if any(not np.isfinite(x).all() for x in parts):
+        return "non-finite forecast values"
+    if llf is not None and (not np.isfinite(llf) or llf < rule["min_llf"]):
+        return f"log-likelihood {llf:.3g} below {rule['min_llf']:.3g}"
+    scale = max(float(history_sd) if np.isfinite(history_sd) else 0.0, 1e-12)
+    big = max(float(np.abs(x).max()) for x in parts)
+    if big > rule["max_abs_sd_multiple"] * scale:
+        return (
+            f"|forecast| {big:.3g} exceeds {rule['max_abs_sd_multiple']:g} x history sd {scale:.3g}"
+        )
+    return None
+
 
 # ------------------------------------------------------------------ keys and manifest
 
@@ -112,6 +149,8 @@ def cache_key(
         "weights": weights,
         "data": _data_hashes(manifest, _series_for(cfg, econ, target)),
     }
+    if not fm:
+        slice_["bench_code"] = BENCH_CODE_VERSION
     return stable_hash(slice_)[:16]
 
 
@@ -163,6 +202,7 @@ def run_benchmarks(
             d["idiosyncratic_ar1"],
             d["max_vars"],
             d.get("maxiter", 100),
+            em_initialization=d.get("em_initialization", True),
         )
         if panel.freq == "M":
             q = panel.quarterly if not panel.quarterly.empty else None
@@ -174,6 +214,14 @@ def run_benchmarks(
     except Exception as e:  # noqa: BLE001
         err["dfm"] = str(e)[:300]
     rt["dfm"] = time.perf_counter() - t0
+    # numerical-validity guard, before the combination so a failed member cannot contaminate it
+    rule = validity_rule(cfg)
+    hist_sd = float(panel.target_tr.astype(float).std())
+    for m in list(out):
+        bad = invalid_reason(out[m].values, out[m].mean, hist_sd, out[m].meta.get("loglike"), rule)
+        if bad:
+            err[m] = f"numerical failure: {bad}"
+            del out[m]
     members = b["combo_bench"]["of"]
     if all(m in out for m in members) or not cfg.backtest.get("combos_require_all_members", True):
         combo = EqualWeight("combo_bench", members).combine(out)
@@ -533,7 +581,7 @@ def stage1(
     modes = modes or list(cfg.backtest["input_modes"])
     manifest = data_manifest()
     fms = cfg.foundation_models()
-    models = [m for m in (models or list(fms)) if m in fms]
+    models = [m for m in (list(fms) if models is None else models) if m in fms]
     workdir.mkdir(parents=True, exist_ok=True)
     (workdir / "requests").mkdir(exist_ok=True)
     weights: dict[str, tuple[Path, str]] = {}
@@ -635,6 +683,7 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
     cfg = cfg or load_config()
     manifest = data_manifest()
     qs = tuple(cfg.scoring["quantiles"])
+    rule = validity_rule(cfg)
     meta_path = workdir / "task_meta.json"
     task_meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
     weights = (
@@ -706,6 +755,17 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
                 if (np.diff(q, axis=1) < 0).any():
                     q = np.sort(q, axis=1)
                 mean = r.get("mean")
+                hist0 = np.asarray(t["history"][0], dtype=float)
+                hist0 = hist0[np.isfinite(hist0)]
+                bad = invalid_reason(
+                    q, mean, float(hist0.std()) if len(hist0) > 1 else 0.0, None, rule
+                )
+                if bad:
+                    mrow["status"] = "error"
+                    mrow["note"] = f"numerical failure: {bad}"[:300]
+                    n_err += 1
+                    by_origin_meta.setdefault(tm["origin"], []).append(mrow)
+                    continue
                 by_origin_rows.setdefault(tm["origin"], []).extend(
                     forecast_rows(
                         **base,

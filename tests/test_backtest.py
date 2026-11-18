@@ -12,8 +12,9 @@ import pytest
 
 from ffcast.config import load_config
 from ffcast.data.store import snapshots_to_changelog
+from ffcast.eval import backtest as bt
 from ffcast.eval import scoring
-from ffcast.eval.backtest import cache_key, panels_at_origin
+from ffcast.eval.backtest import cache_key, invalid_reason, panels_at_origin
 from ffcast.eval.bias import _hac_ols
 from ffcast.eval.outturns import OutturnBuilder
 from ffcast.models.runner import make_task
@@ -276,3 +277,26 @@ def test_summary_builds_from_synthetic_tables(tmp_path):
     assert t.splitlines()[2] == "| 1 | yes |" and t.splitlines()[3] == "|  | x |"
     p = summary.write_summary(root=tmp_path)
     assert p.name == "SUMMARY.md" and p.read_text(encoding="utf-8").startswith("# Backtest")
+
+
+def test_bench_code_version_changes_benchmark_keys_only(monkeypatch):
+    cfg = _synthetic_cfg()
+    man = {"rtd:M.ZZ.X": {"sha256": "a" * 64}}
+    fm = next(iter(cfg.foundation_models()))
+    k_ar, k_fm = (
+        cache_key(cfg, man, "ZZ", "x", "ar"),
+        cache_key(cfg, man, "ZZ", "x", fm, weights="w"),
+    )
+    monkeypatch.setattr(bt, "BENCH_CODE_VERSION", bt.BENCH_CODE_VERSION + 1)
+    assert cache_key(cfg, man, "ZZ", "x", "ar") != k_ar
+    assert cache_key(cfg, man, "ZZ", "x", fm, weights="w") == k_fm
+
+
+def test_invalid_reason_flags_numerical_failures_only():
+    q = np.array([[-0.5, 0.0, 0.5], [-0.6, 0.1, 0.7]])
+    assert invalid_reason(q, q.mean(axis=1), 0.4, -1234.5) is None
+    assert "non-finite" in invalid_reason(np.array([[0.0, np.nan, 1.0]]), None, 0.4)
+    assert "log-likelihood" in invalid_reason(q, None, 0.4, -1.2e54)
+    assert "exceeds" in invalid_reason(q * 1e20, None, 0.4, -100.0)
+    assert invalid_reason(q * 30, None, 1.0, None) is None  # 30 sd is large but finite and sane
+    assert "exceeds" in invalid_reason(q * 30, None, 1.0, None, {"max_abs_sd_multiple": 10})

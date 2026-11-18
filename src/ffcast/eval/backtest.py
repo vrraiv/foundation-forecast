@@ -140,7 +140,15 @@ def cache_key(
         "backtest": {
             k: v
             for k, v in cfg.backtest.items()
-            if k not in ("parallel_benchmark_processes", "origins_per_worker_request", "cache")
+            # execution details and the validity guard (applied when rows are stored; it turns
+            # values into `error` rows and never changes a value) are not part of the key
+            if k
+            not in (
+                "parallel_benchmark_processes",
+                "origins_per_worker_request",
+                "cache",
+                "validity",
+            )
         },
         "quantiles": cfg.scoring["quantiles"],
         "model": model,

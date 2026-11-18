@@ -1,0 +1,2 @@
+error: No virtual environment found for executable name `venv_tirex`; run `uv venv` to create an environment, or pass `--system` to install into a non-virtual environment
+tirex exit 2

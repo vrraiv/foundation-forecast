@@ -58,7 +58,15 @@ remote; data/ and registry/ are git-ignored and must never be committed).
    unrelated package; Moirai 2.0 is CC-BY-NC-4.0; the `timesfm` package is now 3.0.x but
    still ships the 2.5 class. Newer weights exist: TiRex-2 (Apache-2.0, multivariate) and
    TimesFM 3.0 (non-commercial). No model publishes a real-data training cutoff.
-8. **Canadian headline CPI is unrevised** (verified across 33 OECD editions), as assumed.
+8. **Canadian headline CPI is unrevised** in 2024-2026 (33 OECD editions) and spot-checked
+   for one month across all editions since 1999, as assumed. Full-history check in Phase 2.
+9. **In-vintage history** is long for Canada (40 years in the 2001 edition) but short for the
+   euro area (23 quarters of GDP in the March 2001 edition), so 2015 stays the recommended
+   primary window with 2001-2014 as a pre-registered extension.
+10. **Bank of Canada Valet API** (not in plan) is a working live feed for Canadian CPI and core
+    measures; DBnomics does not mirror the regular StatCan CPI, LFS or retail tables.
+11. **TiRex-2 weights** changed on 2026-07-02 and files were re-uploaded 2026-10-06, so its
+    Q2 boundary is ambiguous; its macro training-data exposure is a model-card tag only.
 
 ## Blocked or needing the owner
 
@@ -69,6 +77,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   classifier and were not retried.
 - Items still open from the first response: OpenTimestamps stub in the dry run, GPU use,
   quarterly frequency of the consumer-spending target.
+- Repository visibility: planning and probe docs are on a public remote; PLAN.md Gate 5
+  expects private code. Owner to decide before Phase 1.
 
 ## Environment facts
 

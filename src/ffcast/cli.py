@@ -70,6 +70,7 @@ def quality() -> None:
 def smoke(
     origin: str = typer.Option("2024-06-25", help="Origin date YYYY-MM-DD"),
     models: str = typer.Option("", help="Comma-separated foundation models to run (default all)"),
+    skip_bench: bool = typer.Option(False, help="Skip the classical benchmarks"),
 ) -> None:
     """Phase 3 smoke test: every model and benchmark forecasts every target at one origin."""
     import datetime as dt
@@ -78,8 +79,11 @@ def smoke(
     from .models.smoke import run_smoke
 
     mlist = [m for m in models.split(",") if m] or None
-    out = Path(__file__).resolve().parents[2] / "data" / "smoke" / f"smoke_{origin}.csv"
-    df = run_smoke(dt.date.fromisoformat(origin), models=mlist, out_path=out)
+    suffix = "_fm" if skip_bench else ""
+    out = Path(__file__).resolve().parents[2] / "data" / "smoke" / f"smoke_{origin}{suffix}.csv"
+    df = run_smoke(
+        dt.date.fromisoformat(origin), models=mlist, out_path=out, run_bench=not skip_bench
+    )
     with_pd_options = df.to_string(index=False, max_colwidth=60)
     typer.echo(with_pd_options)
     bad = df[~df["ok"] & (df["variant"] != "wall")]

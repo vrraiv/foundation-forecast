@@ -76,5 +76,16 @@ See `data/smoke/smoke_<origin>.csv` (git-ignored) and the runtime table below, g
 `ffcast smoke --origin 2024-06-25`.
 
 <!-- RUNTIME TABLE START -->
-(pending)
+Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker.
+
+| model | variant | tasks | mean s/task | max s/task | checks |
+| --- | --- | --- | --- | --- | --- |
+| ar | uni | 11 | 0.010 | 0.025 | all sane |
+| bvar | multi | 11 | 0.145 | 0.171 | all sane |
+| combo_bench | multi | 11 | 0.000 | 0.000 | all sane |
+| dfm | multi | 11 | 10.427 | 13.752 | all sane |
+| naive | uni | 11 | 0.054 | 0.590 | all sane |
+| chronos2, timesfm25, tirex, tirex2, moirai2 | - | 0 | - | - | not run: workers refused to start with about 2 GB of commit charge free (machine issue, see STATUS.md); each verified individually on a synthetic task earlier the same day (load 1-25 s, 0.05-0.5 s per task) |
+
+Sane-magnitude rule: every quantile within [min - 3 sd, max + 3 sd] of the target's own transformed history at the origin, quantiles non-decreasing. Benchmarks passed for all 11 targets (55 checks).
 <!-- RUNTIME TABLE END -->

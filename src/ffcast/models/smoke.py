@@ -110,6 +110,7 @@ def run_smoke(
     cfg: Config | None = None,
     models: list[str] | None = None,
     out_path: Path | None = None,
+    run_bench: bool = True,
 ) -> pd.DataFrame:
     cfg = cfg or load_config()
     table = read_all()
@@ -133,6 +134,8 @@ def run_smoke(
                 continue
             panels[(econ, tname)] = p
             horizon = max(cfg.horizons[p.freq])
+            if not run_bench:
+                continue
             bench = run_benchmarks(cfg, p, horizon, qs)
             fcs = {}
             for name, val in bench.items():

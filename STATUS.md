@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 2 done, Phase 3 starting). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 3 in progress: smoke test running). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -10,7 +10,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
-| 3 Models and benchmarks | In progress |
+| 3 Models and benchmarks | In progress. Five worker environments locked and synced (`envs/*/uv.lock`); weights pinned and hash-verified under `data/models/`; Chronos-2, TiRex, TiRex-2 and Moirai 2.0 workers verified byte-deterministic on a synthetic task; TimesFM 2.5 worker verified only outside the orchestrator (see machine issue below). Benchmarks (naive, AR, BVAR, DFM, combinations) pass the smoke checks at origin 2024-06-25 for 11 targets. `docs/model_cards.md` written; runtime table pending the full smoke run. |
 | 4 Backtest and scoring | Not started |
 | 5 Live registry | Not started |
 
@@ -37,9 +37,11 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   in-vintage history is at least 10 years. **Approved.**
 - Origin: 25th or next business day, information set strictly before the origin date.
   **Approved.**
-- OECD edition visibility rule: owner questioned the conservative rule; agent proposed a
-  checked rule (edition M visible at the 25th-of-M origin, enforced by a release-date check
-  per edition). **Pending owner confirmation.**
+- OECD edition visibility rule: owner questioned the conservative rule; agent proposed that
+  edition M be treated as visible at the 25th-of-M origin (`same_month_eve`: the edition is
+  dated the eve of the origin). This is an assumption about OECD publication timing backed by
+  edition content (docs/data_quality.md section 4); there is no published OECD schedule to
+  check against. The conservative rule remains a config switch. **Pending owner confirmation.**
 - Canadian data route: StatCan loads in the owner's browser after a Cloudflare challenge;
   scripted access still blocked on 2026-11-17 (WDS and the 36100107-SDMX.zip both 403).
   Owner may run extraction scripts manually; retry from the agent on later days. **Pending.**
@@ -55,7 +57,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Phase 2: every source is reduced to one change-log table (R/D rows dated by vintage), so
   `as_of` has a single semantics; full-snapshot sources are diffed into it with a 1e-9
   relative tolerance (OECD CSVs carry float noise such as 5.09999999999999).
-- Phase 2: OECD edition M is dated the 25th of M (`oecd_edition_rule: checked_same_month`).
+- Phase 2: OECD edition M is dated the 24th of M, the eve of the origin (`oecd_edition_rule: same_month_eve`).
   Evidence: in 334 Canadian editions only edition 202104 contained the previous month's CPI
   (released 2021-04-21); unemployment for M-1 (released first Friday) is present in 109
   editions. The conservative rule remains a config switch. Owner confirmation still pending.
@@ -64,6 +66,20 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Phase 2: ECB "Replace" rows with an empty value are treated as deletes dated VALID_FROM.
 - Phase 2: DBnomics rows are labelled `dbnomics`, never `statcan`; the two providers are never
   merged into one history.
+- Phase 2 follow-up: a primary vintage source is used only if its latest vintage is at most
+  `max_staleness_days` old (RTD 100 days), otherwise the fallback; this moves euro-area
+  unemployment to OECD editions for origins from 2024-07 to 2025-07 (RTD gap).
+- Phase 2 follow-up: Canadian headline CPI and euro-area core HICP get pseudo-vintages (month m
+  visible at the origin of m+1) from the latest Valet / Eurostat snapshot; Canadian core CPI is
+  blocked.
+- Phase 3: one uv project per model under `envs/`; workers never import `ffcast` and receive
+  only `as_of` output (process-boundary enforcement of the no-look-ahead rule); workers get a
+  minimal, fixed environment, not the parent's. TiRex is loaded from the pinned checkpoint file
+  through its model registry because `tirex.load_model` accepts only Hugging Face ids.
+- Phase 3: conditioning variables for multivariate models are selected by a coverage/staleness
+  rule in `Panel.multivariate`; the BVAR drops the gappiest column until a balanced sample of
+  10 observations per parameter exists; DFM limited to 12 monthly variables and 100 EM
+  iterations after measuring 35-40 s per fit with 22 variables.
 
 - Windows, not WSL, for the toolchain: all five models install and run on Windows CPU;
   Windows has 32 GB RAM vs 15 GB in WSL. Task runner will be a `justfile` (neither
@@ -107,6 +123,15 @@ remote; data/ and registry/ are git-ignored and must never be committed).
     Q2 boundary is ambiguous; its macro training-data exposure is a model-card tag only.
 
 ## Blocked or needing the owner
+
+- **Machine memory (2026-11-18):** Windows reports about 126.7 GB of a 131 GB commit limit in
+  use while all processes together hold about 29 GB and kernel pools about 6 GB; some 90 GB of
+  commit is held outside visible processes. With about 4 GB free, the TimesFM worker (925 MB
+  checkpoint) crashes with an access violation whenever the orchestrator process holds a few
+  hundred MB more (importing pandas is enough), while it runs fine from a bare shell. Workers
+  now refuse to start below 4 GB of free commit with a clear message. The owner should look at
+  what holds the commit (a reboot, or `wsl --shutdown`, are the usual fixes); the agent did not
+  restart anything.
 
 - HUMAN GATE 0 decisions: see `docs/feasibility.md` section 5.
 - StatCan access route (browser test by the owner, or accept mirror + OECD).

@@ -164,9 +164,17 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   Claude Code harness stopped both background jobs for critical memory pressure while the session
   was idle; afterwards, with no Python process running, free physical memory was about 10 GB of
   32 GB. The harness behaviour can be disabled by starting Claude Code with
-  `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`. At 15:35 the largest process working set was
-  2.2 GB (memory compression) and the sum of process commits 32 GB of a 40 GB commit charge, so
-  roughly 20 GB of physical memory is held outside any process; the holder is still unidentified.
+  `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`. Measured at 17:15 with no backtest running:
+  22.4 GB of 31.9 GB physical in use, and it is ordinary processes, not a hidden holder (an
+  earlier note claiming 20 GB outside any process was wrong; it looked at the top six processes
+  only). 422 processes sum to 23.3 GB of working set: 16 Claude processes 3.6 GB (desktop app plus
+  three other Claude Code sessions from 15, 16 and 18 Nov), VS Code 2.1 GB, Chrome 2.0 GB, ChatGPT
+  1.9 GB, svchost 1.3 GB, OneDrive 0.9 GB, Steam 0.6 GB, and a `courtdelay fetch` job from another
+  project; kernel pools 4.7 GB; memory compression 2.2 GB (a sign of pressure). Commit charge
+  40 GB of 128 GB, so the 126 GB commit episode has not recurred. Headroom for the restart is
+  about 9.5 GB free plus whatever the owner closes; the stopped jobs together had been using
+  roughly 5 benchmark processes plus one model worker for hours, and the stop came at the moment
+  stage 3 (then an in-memory merge of six million rows) was about to start.
 
 - **Restart of the Phase 4 jobs (2026-11-18 15:28):** the harness stopped the model stage
   (complete, merge pending) and the benchmark recompute (269 of 310 origins) for machine-wide

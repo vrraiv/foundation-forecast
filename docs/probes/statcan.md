@@ -157,6 +157,46 @@ registers them with `RawStore.register_manual` (hash-pinned, labelled `manual`);
 mirror + OECD editions. Not attempted and not proposed: browser-emulation or challenge-solving
 clients, which would amount to circumventing the site's bot protection.
 
+### 1.6 The WDS REST API answers; only the file downloads are challenged (2026-11-18, afternoon)
+
+The owner noticed that individual-series requests to the WDS succeed while full-table downloads
+fail. Re-tested from this machine (home connection, plain curl, identified client string
+`foundation-forecast/0.1 (public data; contact via GitHub vrraiv/foundation-forecast)`):
+
+| Endpoint | Result |
+|---|---|
+| `GET /t1/wds/rest/getDataFromVectorByReferencePeriodRange?vectorIds=1675033092&startRefPeriod=1900-01-01&endReferencePeriod=2026-12-01` | 200, SUCCESS, 514 points 1984-01 to 2026-10 (vector ids are numeric here; `v1675033092` is rejected as invalid) |
+| `POST /t1/wds/rest/getDataFromVectorsAndLatestNPeriods` `[{"vectorId":41690973,"latestN":3}]` | 200, SUCCESS, with `releaseTime` per data point |
+| `POST /t1/wds/rest/getBulkVectorDataByRange` (three vectors, release-date window 2020-01-01 to 2026-12-01) | 200, SUCCESS for all three |
+| `POST /t1/wds/rest/getCubeMetadata` for 18100004 and for the real-time table 36100491 | 200, SUCCESS (36100491: 141 "Release" members from 2015-03-03 to 2026-10-30, 120,609 series) |
+| `GET /t1/wds/rest/getAllCubesListLite` | 200, 5.0 MB (403 in the morning re-test, so the API too is intermittent) |
+| `GET /t1/wds/rest/getChangedCubeList/2026-11-18` | 200, SUCCESS |
+| `GET /t1/wds/rest/getFullTableDownloadCSV/18100004/en` | 200, SUCCESS, link returned |
+| `GET https://www150.statcan.gc.ca/n1/tbl/csv/18100004-eng.zip` (the link) | 403, `cf-mitigated: challenge` |
+| `GET /t1/wds/sdmx/statcan/rest/data/DF_18100004/...` (SDMX REST) | 403, challenge |
+| `GET /t1/wds/rest/getSeriesInfoFromVector?vectorId=...` | 405 (that endpoint is POST-only) |
+| `GET /t1/wds/rest/getChangedSeriesDataFromVector/41690973` | 404 |
+
+So the Cloudflare rule challenges the static file paths (`/n1/tbl/csv/*.zip`, and the SDMX
+service) while the JSON REST API under `/t1/wds/rest/` answers an identified client. This agrees
+with the runner log of the same afternoon: the link requests mostly succeeded and only the zip
+downloads were challenged.
+
+Cross-check: the 514 monthly values of vector 1675033092 (CPI-XFET) returned by the API equal the
+owner-supplied 18-10-0256 file at every month (max absolute difference 0). The `releaseTime`
+field is the time of the last change to each point (2026-11-16 08:30 for 442 points, 2025-06-24
+for the 72 oldest), not the original first release, so it does not give vintages by itself.
+
+Consequences: (a) a `statcan_wds` source for `latest` data by vector id is feasible and would
+replace the monthly owner download for the live phase; (b) the real-time tables are reachable
+through coordinates or vector ids (one request per release member), so their vintages could be
+refreshed without the zip; (c) the backtest inputs are not changed by this finding (rules fixed;
+the only StatCan input is the hash-pinned manual file, which the API reproduces exactly).
+Neither change is made without the owner's decision. The API is used only with an identified
+client string and within the published limits (25 requests per second per IP). The client string
+in this probe named the repository; later requests use the generic `foundation-forecast/0.1
+(public data)` so that no account name travels in a header.
+
 ## 2. Real-time data tables: the full list, with status
 
 List page: `https://www.statcan.gc.ca/en/dai/btd/rct` (fetched OK three times; "Date modified: 2025-12-16"). Table 1 verbatim, plus open.canada.ca frequency, last published date and status (probe date 2026-11-17):

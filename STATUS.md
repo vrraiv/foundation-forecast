@@ -25,6 +25,31 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Monthly GDP by industry (Canada) to be replaced by consumer spending (household final
   consumption). Note: this is quarterly, not monthly.
 
+## HUMAN GATE 0 outcome (2026-11-17, owner)
+
+- Targets per economy: real GDP (Q), headline inflation (M), unemployment rate (M), retail
+  volume (M), household final consumption (Q). Core inflation kept as a lag-only series,
+  excluded from the real-time vs revised comparison. **Approved.**
+- Vintage sources: precise-dated where live (StatCan GDP tables, RTD GDP/HICP/unemployment/
+  consumption), OECD editions elsewhere, OECD editions for IP and retail in both economies.
+  **Approved.**
+- Window: 2015-01 to present primary; 2001-01 to 2014-12 pre-registered extension where
+  in-vintage history is at least 10 years. **Approved.**
+- Origin: 25th or next business day, information set strictly before the origin date.
+  **Approved.**
+- OECD edition visibility rule: owner questioned the conservative rule; agent proposed a
+  checked rule (edition M visible at the 25th-of-M origin, enforced by a release-date check
+  per edition). **Pending owner confirmation.**
+- Canadian data route: StatCan loads in the owner's browser after a Cloudflare challenge;
+  scripted access still blocked on 2026-11-17 (WDS and the 36100107-SDMX.zip both 403).
+  Owner may run extraction scripts manually; retry from the agent on later days. **Pending.**
+- Models: four planned plus TiRex-2; TimesFM 3.0 excluded. Owner reviewing Moirai and TiRex
+  licences. **Approved subject to licence review.**
+- Repository visibility and gate strictness: owner will revise PLAN.md gates. **Pending.**
+- OpenTimestamps stubbed in the dry run and no GPU use: **approved.**
+- Consumer spending: quarterly; StatCan table 36-10-0107 (household final consumption
+  expenditure), released on about the 28th of the second month after the quarter.
+
 ## Decisions taken by the agent (owner may overturn)
 
 - Windows, not WSL, for the toolchain: all five models install and run on Windows CPU;

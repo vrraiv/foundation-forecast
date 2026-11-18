@@ -1,0 +1,38 @@
+# Manual fetch of Statistics Canada full-table CSV zips from a GitHub runner (the WDS answers
+# runners while it challenges home connections, see docs/probes/statcan.md). Manual only: no
+# schedule. The files leave the runner only as a short-lived workflow artifact that the owner or
+# the agent downloads with `gh run download` and registers in data/raw with its hash; nothing is
+# committed. Public data only; no secrets are used.
+name: StatCan fetch (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tables:
+        description: "Comma-separated StatCan product ids (8 digits)"
+        type: string
+        default: "18100004,36100107,36100104,14100287,20100067,36100431"
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Fetch the tables
+        run: python -I scripts/statcan_fetch.py --out statcan_out "${{ inputs.tables }}"
+        continue-on-error: true
+      - name: Show the manifest
+        run: cat statcan_out/manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: statcan-tables
+          path: statcan_out
+          retention-days: 7
+          if-no-files-found: error

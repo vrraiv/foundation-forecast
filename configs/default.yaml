@@ -356,7 +356,7 @@ backtest:
   # when |quantile or mean| exceeds max_abs_sd_multiple standard deviations of the model's own
   # input history in the space it forecast in. Sane forecasts are within a few sd; the failures
   # seen were 1e14 to 1e97, so the threshold is orders of magnitude from both.
-  validity: {max_abs_sd_multiple: 50, min_llf: -1.0e10}
+  validity: {max_abs_sd_multiple: 50, min_llf: -1.0e+10}   # YAML 1.1 needs the signed exponent for a float
 
 scoring:
   quantiles: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]

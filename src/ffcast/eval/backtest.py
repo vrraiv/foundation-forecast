@@ -58,7 +58,10 @@ DEFAULT_VALIDITY = {"max_abs_sd_multiple": 50.0, "min_llf": -1.0e10}
 
 
 def validity_rule(cfg: Config) -> dict:
-    return {**DEFAULT_VALIDITY, **cfg.backtest.get("validity", {})}
+    """Thresholds as floats (YAML 1.1 reads `-1.0e10` as a string; `-1.0e+10` is a float)."""
+    return {
+        k: float(v) for k, v in {**DEFAULT_VALIDITY, **cfg.backtest.get("validity", {})}.items()
+    }
 
 
 def invalid_reason(

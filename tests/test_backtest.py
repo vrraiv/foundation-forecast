@@ -300,3 +300,9 @@ def test_invalid_reason_flags_numerical_failures_only():
     assert "exceeds" in invalid_reason(q * 1e20, None, 0.4, -100.0)
     assert invalid_reason(q * 30, None, 1.0, None) is None  # 30 sd is large but finite and sane
     assert "exceeds" in invalid_reason(q * 30, None, 1.0, None, {"max_abs_sd_multiple": 10})
+
+
+def test_validity_rule_from_default_config_is_numeric():
+    rule = bt.validity_rule(load_config())
+    assert isinstance(rule["min_llf"], float) and rule["min_llf"] < -1e9
+    assert isinstance(rule["max_abs_sd_multiple"], float) and rule["max_abs_sd_multiple"] > 1

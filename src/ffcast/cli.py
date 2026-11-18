@@ -187,7 +187,7 @@ def backtest(
             "-m",
             "ffcast.eval.backtest",
             "stage3",
-            json.dumps({"workdir": str(workdir)}),
+            json.dumps({"workdir": str(workdir), "note": note}),
         ],
         cwd=str(root),
     )

@@ -1,6 +1,6 @@
-# Manual fetch of Statistics Canada full-table CSV zips from a GitHub runner (the WDS answers
-# runners while it challenges home connections, see docs/probes/statcan.md). Manual only: no
-# schedule. The files leave the runner only as a short-lived workflow artifact that the owner or
+# Manual fetch of Statistics Canada full-table CSV zips from a GitHub runner. The WDS answered a
+# runner once (2026-11-14) and refused it on every other day tested (docs/probes/statcan.md), so
+# this is a free retry for release days, not a working route. Manual only: no schedule. The files leave the runner only as a short-lived workflow artifact that the owner or
 # the agent downloads with `gh run download` and registers in data/raw with its hash; nothing is
 # committed. Public data only; no secrets are used.
 name: StatCan fetch (manual)

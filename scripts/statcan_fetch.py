@@ -1,6 +1,6 @@
 """Fetch Statistics Canada full-table CSV zips through the Web Data Service, for use from a
-GitHub Actions runner (the owner's sixfigures repository shows the WDS answers runners while it
-challenges home connections). Standard library only; nothing is parsed here.
+GitHub Actions runner. The WDS answered a runner once (2026-11-14) and refused it on every other
+day tested, so every attempt is recorded as evidence. Standard library only; nothing is parsed.
 
     python -I scripts/statcan_fetch.py --out DIR 18100004 36100107 ...
 

@@ -132,14 +132,16 @@ against outturns.
    foundation-model response. The guard is applied when rows are stored and is not part of the
    cache key. What it caught in the recomputed benchmarks (269 origins): zero DFM cells (the
    initialisation fix removed the breakdown it was written for) and 11 multivariate BVAR cells at
-   the origins of 2020-08 to 2020-11 (Canadian CPI, retail, unemployment, consumption; euro-area
-   consumption) whose forecasts in transformed space were 60 to 1,000 against an input history
-   standard deviation of 0.3 to 1.8, that is, the pandemic shock passing through the VAR. Those
-   cells were `ok` in the first run and are now `error`, so BVAR's own-sample statistics exclude
-   them; the comparison against AR uses common origins and the ex-COVID split is unaffected. The
-   threshold is not changed after seeing this (that would be tuning on the sample); whether the
-   magnitude rule should apply to every model or the guard be limited to non-finite values and
-   the log-likelihood floor is put to the owner before scoring.
+   the origins of 2020-08 to 2020-11 (Canadian CPI, core CPI, retail, unemployment, consumption;
+   euro-area consumption), where the pandemic shock passing through the VAR produced forecasts
+   far outside the rule (the magnitudes are in the private meta store, not here). Those cells
+   were `ok` in the first run and are now `error`, so BVAR's own-sample statistics exclude them;
+   the relative statistics against AR are computed on common origins, the model confidence set
+   drops every origin where any member is missing (so these errors and the DFM errors shrink that
+   sample for every model), and the ex-COVID sample loses only the horizons from those origins
+   that reach beyond 2021-06. The threshold is not changed after seeing this (that would be
+   tuning on the sample); whether the magnitude rule should apply to every model or the guard be
+   limited to non-finite values and the log-likelihood floor is put to the owner before scoring.
 4. **Cache key.** The live-data source (`latest`) was removed from a target's key on 2026-11-18
    because the backtest never reads it; this re-keyed every cell, so the two trial origins of
    Chronos-2 and Moirai are recomputed in the second pass.

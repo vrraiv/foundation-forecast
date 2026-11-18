@@ -174,8 +174,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   stage 3 on workdir `20261118T075221` first, then the remaining 41 benchmark origins with
   `--skip-fm` alone, then the second pass, verify, score, SPF (`docs/backtest.md`, Run log).
 - **Validity guard scope:** in the recomputed benchmarks the guard caught no DFM cell but 11
-  multivariate BVAR cells at the 2020-08..11 origins (forecasts 60-1,000 against an input sd of
-  0.3-1.8). Owner to choose before scoring: keep the magnitude rule for every model (current
+  multivariate BVAR cells at the 2020-08..11 origins (pandemic shock through the VAR; magnitudes
+  stay in the private store). Owner to choose before scoring: keep the magnitude rule for every model (current
   config, recommended: the rule was fixed before these cells were seen and the ex-COVID split
   exists), or limit the guard to non-finite values and the log-likelihood floor. Either way the
   choice is recorded as a deviation; the threshold itself is not retuned.

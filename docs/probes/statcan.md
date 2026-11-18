@@ -197,6 +197,39 @@ client string and within the published limits (25 requests per second per IP). T
 in this probe named the repository; later requests use the generic `foundation-forecast/0.1
 (public data)` so that no account name travels in a header.
 
+### 1.7 WDS route built; a full-table zip also got through once (2026-11-18, 17:12 UTC)
+
+Owner decision (2026-11-18): Statistics Canada is the source whenever feasible. Done the same
+afternoon:
+
+- New source `statcan_wds` (`ffcast.data.sources.statcan.download_vector`, `normalise_wds_latest`):
+  one GET to `getDataFromVectorByReferencePeriodRange` per vector, body stored and hashed under
+  `data/raw/statcan-wds/<day>/`, generic client string `foundation-forecast-research/0.1`. The
+  series id is `statcan:<pid>:v<vector>`, the same as for the owner-registered zip route, so the
+  two are interchangeable. A `fallback` latest source is honoured when the API is challenged.
+- Canadian `latest` sources switched to WDS vectors: GDP 36-10-0104 v62305752, consumption
+  36-10-0107 v61989012, unemployment rate 14-10-0287 v2062815, retail volume 20-10-0067
+  v1446870181, CPI-XFET 18-10-0256 v1675033092 (owner zip as fallback). Headline CPI stays on
+  Valet (base of the pseudo-vintages used by the running backtest; switching changes that target's
+  cache key and is a recorded source change for after the run).
+- WDS status codes (from `getCodeSets`): 0 normal, 1 `..`, 2 `0s`, 3-6 quality A-D, 7 `E`, 8 `F`,
+  9 `...`, 10 `<LOD`; only 1, 8 and 9 are treated as missing. (A first version treated 3 as
+  missing and dropped 80 retail points marked quality A; caught by the cross-check below.)
+- Cross-checks of the API series against the vintage sources' latest values: GDP and consumption
+  equal the DBnomics mirror of 36-10-0431 at all 262 quarters; the unemployment rate equals the
+  OECD series at all 610 months; CPI-XFET equals the owner file at all 514 months. Retail: the
+  StatCan Fisher chained volume index (2017 onward, 116 months) and the OECD volume index are not
+  the same series (level ratio varies by 0.36%, month-on-month log growth differs by up to 0.29
+  percentage points, median 0.03). This is a definitional difference between the OECD vintages
+  used in the backtest and StatCan's own volume measure; it is flagged, not substituted.
+- During the pipeline run at 17:12 UTC the full-table zip `36100431-eng.zip` (real-time GDP,
+  21.7 MB, sha256 96c6332dbb48c720...) downloaded from this machine without a challenge, while the
+  same path was challenged at 16:37 UTC from a runner and earlier in the afternoon from here. So
+  the file path is intermittently open too. The zip is kept as evidence; the DBnomics mirror
+  remains the vintage source of record for the backtest (fixed rule), and direct parsing of the
+  StatCan real-time table (`normalise_realtime_table`) is the planned, recorded source change
+  after the run.
+
 ## 2. Real-time data tables: the full list, with status
 
 List page: `https://www.statcan.gc.ca/en/dai/btd/rct` (fetched OK three times; "Date modified: 2025-12-16"). Table 1 verbatim, plus open.canada.ca frequency, last published date and status (probe date 2026-11-17):

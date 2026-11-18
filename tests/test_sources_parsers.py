@@ -158,3 +158,72 @@ def test_statcan_manual_latest_selects_one_vector_by_labels(tmp_path: Path):
             statcan.read_table_zip(z),
             {"Products and product groups": "All-items excluding food and energy"},
         )
+
+
+def test_statcan_wds_vector_json_parses_monthly_and_quarterly(tmp_path: Path):
+    import json
+
+    import pytest
+
+    from ffcast.data.sources import statcan
+
+    def pt(ref, val, freq, status=0, release="2026-11-16T08:30"):
+        return {
+            "refPer": ref,
+            "value": val,
+            "decimals": 1,
+            "scalarFactorCode": 0,
+            "symbolCode": 0,
+            "statusCode": status,
+            "securityLevelCode": 0,
+            "releaseTime": release,
+            "frequencyCode": freq,
+        }
+
+    monthly = [
+        {
+            "status": "SUCCESS",
+            "object": {
+                "responseStatusCode": 0,
+                "productId": 18100256,
+                "coordinate": "1.9.0.0.0.0.0.0.0.0",
+                "vectorId": 1675033092,
+                "vectorDataPoint": [
+                    pt("2026-07-01", 158.5, 6, status=8),  # 'F' too unreliable: dropped
+                    pt("2026-08-01", 158.9, 6, status=3),  # quality 'A': kept
+                    pt("2026-09-01", None, 6, status=1),  # '..' not available
+                    pt("2026-10-01", 159.2, 6),
+                ],
+            },
+        }
+    ]
+    pm = tmp_path / "18100256_v1675033092.json"
+    pm.write_text(json.dumps(monthly), encoding="utf-8")
+    table, sid = statcan.normalise_wds_latest(pm, "18100256", 1675033092, dt.date(2026, 11, 18))
+    assert sid == "statcan:18100256:v1675033092"
+    assert dict(zip(table["ref_period"], table["value"], strict=True)) == {
+        "2026-08": 158.9,
+        "2026-10": 159.2,
+    }
+    assert set(table["vintage_date"]) == {dt.date(2026, 11, 18)}
+    with pytest.raises(ValueError, match="wanted v41690973"):
+        statcan.normalise_wds_latest(pm, "18100256", "v41690973", dt.date(2026, 11, 18))
+
+    quarterly = [
+        {
+            "status": "SUCCESS",
+            "object": {
+                "productId": 36100104,
+                "vectorId": 62305752,
+                "vectorDataPoint": [pt("2026-01-01", 2400000, 9), pt("2026-04-01", 2410000, 9)],
+            },
+        }
+    ]
+    pq = tmp_path / "36100104_v62305752.json"
+    pq.write_text(json.dumps(quarterly), encoding="utf-8")
+    _, vid, ser, info = statcan.parse_vector_json(pq)
+    assert vid == "62305752" and list(ser.index) == ["2026-Q1", "2026-Q2"]
+    assert info["frequencyCode"] == 9 and info["last_release_time"] == "2026-11-16T08:30"
+    pq.write_text(json.dumps([{"status": "FAILED", "object": "bad vector"}]), encoding="utf-8")
+    with pytest.raises(ValueError, match="not SUCCESS"):
+        statcan.parse_vector_json(pq)

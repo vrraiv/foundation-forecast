@@ -248,28 +248,32 @@ def _rtd_series(store, rep, save, key):
 
 
 def _statcan_realtime(store, rep, save, table_id, tname):
+    """Vintages of a StatCan real-time table. The source of record for the backtest is the
+    DBnomics mirror of 36-10-0431 (fixed before the first full run); the StatCan zip is fetched
+    when the WDS lets it through and kept as evidence for the planned switch to direct parsing
+    (`statcan.normalise_realtime_table`), which changes series ids and therefore cache keys and
+    is done only as a recorded source change after the run."""
     rf = statcan.try_download_full_table(store, table_id)
     if rf is None:
+        rep.problem(f"statcan {table_id}: full-table zip challenged; using DBnomics mirror")
+    else:
         rep.problem(
-            f"statcan {table_id}: WDS unreachable (Cloudflare challenge); using DBnomics mirror"
+            f"statcan {table_id}: full-table zip downloaded ({rf.sha256[:16]}); DBnomics mirror "
+            "remains the source of record until the direct-parsing switch is recorded"
         )
-        if table_id != "36100431":
-            rep.problem(f"statcan {table_id}: no mirror available; vintages not loaded")
-            return
-        estim = {"gdp": "estim_24", "consumption": "estim_12"}[tname]
-        raw = dbnomics.download_realtime(
-            store, table_id, ["estim_24", "estim_12"], "price_1", "sea_adj_1"
-        )
-        table = dbnomics.normalise(raw.path, table_id, estim, "price_1", "sea_adj_1")
-        save(
-            dbnomics.series_id(table_id, estim, "price_1", "sea_adj_1"),
-            table,
-            dbnomics.SOURCE,
-            [str(raw.path)],
-        )
+    if table_id != "36100431":
+        rep.problem(f"statcan {table_id}: no mirror available; vintages not loaded")
         return
-    rep.problem(
-        f"statcan {table_id}: downloaded but real-time parsing not yet wired (Phase 2 follow-up)"
+    estim = {"gdp": "estim_24", "consumption": "estim_12"}[tname]
+    raw = dbnomics.download_realtime(
+        store, table_id, ["estim_24", "estim_12"], "price_1", "sea_adj_1"
+    )
+    table = dbnomics.normalise(raw.path, table_id, estim, "price_1", "sea_adj_1")
+    save(
+        dbnomics.series_id(table_id, estim, "price_1", "sea_adj_1"),
+        table,
+        dbnomics.SOURCE,
+        [str(raw.path)],
     )
 
 
@@ -300,6 +304,19 @@ def _latest(store, rep, save, econ, tname, spec):
             rep.problem(
                 f"{econ}/{tname}: statcan latest table {spec['table']} unreachable (Cloudflare challenge)"
             )
+    elif src == "statcan_wds":
+        try:
+            rf = statcan.download_vector(store, spec["table"], spec["vector"])
+        except DownloadError as e:
+            if not spec.get("fallback"):
+                raise
+            rep.problem(f"{econ}/{tname}: statcan_wds failed ({e}); using fallback latest source")
+            _latest(store, rep, save, econ, tname, spec["fallback"])
+            return
+        table, sid = statcan.normalise_wds_latest(
+            rf.path, spec["table"], spec["vector"], rf.download_date
+        )
+        save(sid, table, statcan.SOURCE, [str(rf.path)])
     elif src == "statcan_manual":
         rf = statcan.find_manual_table(store, spec["table"])
         if rf is None:

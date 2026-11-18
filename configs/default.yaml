@@ -64,7 +64,9 @@ targets:
       name: Real GDP, expenditure-based
       freq: Q
       vintages: {source: statcan_rt, table: "36100431", fallback: {source: oecd, measure: B1GQ_Q, unit: XDC, activity: _T}}
-      latest: {source: statcan, table: "36100104"}
+      # WDS vector v62305752: Canada; chained (2017) dollars; seasonally adjusted at annual rates;
+      # gross domestic product at market prices (coordinate 1.1.1.30 of 36-10-0104).
+      latest: {source: statcan_wds, table: "36100104", vector: 62305752}
       transform: log_diff
     cpi:
       name: CPI all items, NSA
@@ -76,6 +78,10 @@ targets:
       # all other months only for Nov 2025 to Nov 2026 (14th-22nd). Earlier years for the other
       # months are NOT verified; the OECD-edition fallback is the robustness variant.
       vintages: {source: pseudo, base: "valet:V41690973", months_after_period: 1, late_months: {1: 2}, fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
+      # Latest and pseudo base stay on Valet (the Bank's mirror of StatCan v41690973) until the
+      # first full backtest has finished: switching the base to statcan:18100004:v41690973 changes
+      # this target's cache key and is planned as a recorded source change afterwards (owner
+      # preference 2026-11-18: StatCan as the source whenever feasible).
       latest: {source: valet, series: V41690973}
       transform: log_diff
       exclude_from_q1: true
@@ -88,12 +94,13 @@ targets:
       # Not revised except by rebasing (owner); pseudo-vintages with the headline-CPI timing
       # (month m visible at the origin of m+1, January at m+2). The Bank of Canada Valet series
       # STATIC_CPIXFET (year-over-year, 1 decimal, from 1995) matches the index's implied rate at
-      # every overlapping month and is the live cross-check; live updates come from a monthly
-      # 18-10-0256 download, with chaining from Valet's rounded rate as a documented fallback only.
+      # every overlapping month and is the live cross-check. Live updates come from the WDS REST API
+      # (vector 1675033092, which returned the owner-supplied file's 514 values exactly on
+      # 2026-11-18), with the owner-registered zip as the fallback when the API is challenged.
       name: CPI excluding food, energy and indirect taxes (CPI-XFET), NSA
       freq: M
       vintages: {source: pseudo, base: "statcan:18100256:v1675033092", months_after_period: 1, late_months: {1: 2}}
-      latest: {source: statcan_manual, table: "18100256", member: {GEO: Canada, "Alternative measures": "Consumer Price Index (CPI), all-items excluding food, energy and the effect of indirect taxes"}}
+      latest: {source: statcan_wds, table: "18100256", vector: 1675033092, fallback: {source: statcan_manual, table: "18100256", member: {GEO: Canada, "Alternative measures": "Consumer Price Index (CPI), all-items excluding food, energy and the effect of indirect taxes"}}}
       transform: log_diff
       exclude_from_q1: true
 
@@ -101,19 +108,25 @@ targets:
       name: Unemployment rate, LFS, SA
       freq: M
       vintages: {source: oecd, measure: UNEMP, unit: PT_LF, activity: _T}
-      latest: {source: statcan, table: "14100287"}
+      # WDS vector v2062815: Canada; unemployment rate; total gender; 15 years and over; estimate;
+      # seasonally adjusted (coordinate 1.7.1.1.1.1 of 14-10-0287).
+      latest: {source: statcan_wds, table: "14100287", vector: 2062815}
       transform: diff
     retail:
       name: Retail sales volume
       freq: M
       vintages: {source: oecd, measure: TOVM, unit: IX, activity: G47}
-      latest: {source: statcan, table: "20100067"}
+      # WDS vector v1446870181: Canada; retail trade; chained Fisher volume index (2017=100), SA
+      # (coordinate 1.1.2 of 20-10-0067, from 2017-01; the OECD vintages carry the history).
+      latest: {source: statcan_wds, table: "20100067", vector: 1446870181}
       transform: log_diff
     consumption:
       name: Household final consumption expenditure, volume
       freq: Q
       vintages: {source: statcan_rt, table: "36100431", fallback: {source: oecd, measure: P3_S1M_Q, unit: XDC, activity: _T}}
-      latest: {source: statcan, table: "36100107"}
+      # WDS vector v61989012: Canada; chained (2017) dollars; SAAR; household final consumption
+      # expenditure (coordinate 1.1.1.55 of 36-10-0107).
+      latest: {source: statcan_wds, table: "36100107", vector: 61989012}
       transform: log_diff
   EA:
     gdp:

@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 4 harness built; full backtest running; Canadian core CPI redefined as CPI-XFET). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 4 full backtest running; StatCan WDS route for Canadian latest data; DFM defect under diagnosis, see Phase 4 row). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -11,7 +11,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
 | 3 Models and benchmarks | **Done.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and all five foundation models (Chronos-2, TimesFM 2.5, TiRex, TiRex-2, Moirai 2.0; 12 model-variant combinations) pass every sane-magnitude and step-1 alignment check on 11 targets (132 checks); step 1 refers to the same target period across models; reruns byte-identical. Realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. Canadian core CPI blocked (no public scripted source). |
-| 4 Backtest and scoring | **In progress.** Harness, forecast store, outturns, scoring tables, Q2 splits, Q4 fixed-event regressions and the ECB SPF comparison are built and tested (`docs/backtest.md`); rules fixed in config and committed before the first run. Full run (`ffcast backtest --window all`: 311 origins 2001-01 to 2026-11, both input modes, all models) started 2026-11-18 07:52 local. SPF run and `ffcast score` follow when it ends. Results stay under `data/backtest/` until Gate 4. |
+| 4 Backtest and scoring | **In progress.** Harness, forecast store, outturns, scoring tables, Q2 splits, Q4 fixed-event regressions and the ECB SPF comparison are built and tested (`docs/backtest.md`); rules fixed in config and committed before the first run. Full run (`ffcast backtest --window all`: 311 origins 2001-01 to 2026-11, both input modes, all models) started 2026-11-18 07:52 local. SPF run and `ffcast score` follow when it ends. A benchmark-only scoring pass (2026-11-18 midday) found the dynamic factor model producing numerically broken forecasts (log-likelihood about -1e54, values up to 1e97) at about 60 origin-target cells, contaminating `combo_bench`; diagnosis is running on numerical validity only, and the remedy, the recompute of the benchmarks and the recorded deviation follow. Results stay under `data/backtest/` until Gate 4. |
 | 5 Live registry | Not started |
 
 ## Decisions taken by the owner so far (2026-11-17)
@@ -54,17 +54,20 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   "no source". Smoke at 2024-06-25: step 1 moved from 2024-04 to 2024-02 for CA retail (edition
   202405 is missing, so the June origin sees edition 202404) and from 2024-05 to 2024-04 for EA
   unemployment (OECD fallback period).
-- Canadian data route: StatCan loads in the owner's browser after a Cloudflare challenge;
-  scripted access still blocked on 2026-11-17 and 2026-11-18 (WDS, SDMX REST and the
-  36100107-SDMX.zip all 403). Owner suggested the community MCP servers and the R package
-  `cansim`: tested 2026-11-18, all blocked (details in `docs/probes/statcan.md` section 1.5);
-  the hosted MCP instance on Render gets the same 403 from its own network, and so does a
-  GitHub Actions runner with an honestly identified client (`.github/workflows/statcan-fetch.yml`,
-  manual dispatch only, 2026-11-18). The owner's sixfigures workflow fetched StatCan tables from a
-  runner on 2026-11-14 with a `Mozilla/5.0` User-Agent; whether the difference is the date or the
-  User-Agent is untested from here (the agent does not send browser User-Agents to pass bot
-  filters). Remaining routes: owner-run browser downloads registered with
-  `RawStore.register_manual`, the owner's own workflow, or the DBnomics mirror + OECD. **Pending.**
+- Canadian data route: **owner decision 2026-11-18: StatCan as the source whenever feasible.**
+  The WDS JSON REST API (`/t1/wds/rest/`) answers an identified client from this machine, while
+  the static full-table zips and the SDMX service are challenged by Cloudflare (owner's
+  observation, confirmed; `docs/probes/statcan.md` 1.6-1.7). New source `statcan_wds` fetches
+  single vectors; the Canadian `latest` series now come from StatCan vectors (GDP, consumption,
+  unemployment rate, retail volume, CPI-XFET with the owner zip as fallback) and agree exactly with
+  the vintage sources where the definitions coincide. Headline CPI stays on Valet until the running
+  backtest ends (its pseudo-vintage base enters the cache key); switching it to
+  `statcan:18100004:v41690973` is the planned source change afterwards. The real-time GDP zip
+  36-10-0431 also downloaded once (17:12 UTC); the DBnomics mirror remains the vintage source of
+  record for the backtest, and direct parsing is the second planned change. Earlier routes
+  (community MCP servers, `cansim`, GitHub Actions runner with retries, 36 attempts) all 403; the
+  owner's browser-identified client fails on 13 and 18 Nov too, so the User-Agent is not the
+  explanation. **Resolved for latest data; vintage-source switches pending the run.**
 - Models: four planned plus TiRex-2; TimesFM 3.0 excluded. Owner reviewing Moirai and TiRex
   licences. **Approved subject to licence review.**
 - Repository visibility and gate strictness: owner will revise PLAN.md gates. **Pending.**
@@ -111,8 +114,9 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where reality differed from the plan
 
-1. **StatCan is unreachable to scripts.** Every www150.statcan.gc.ca path (WDS API, bulk
-   zips) returns a Cloudflare JS challenge to curl, Python and WebFetch from this machine.
+1. **StatCan file downloads are challenged; the JSON API answers.** From 2026-10 the static
+   zips and SDMX paths return a Cloudflare challenge to scripts (intermittently also the API,
+   which otherwise answers an identified client; resolved for latest data on 2026-11-18).
    Structure verified only via the DBnomics mirror. Six of the 19 real-time tables are
    inactive (incl. both retail tables), one CPI core table is stale. No vintage table for
    LFS unemployment or CPI ex food and energy.
@@ -159,7 +163,12 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   check kernel pools (RAMMap) before blaming the workers.
 
 - HUMAN GATE 0 decisions: see `docs/feasibility.md` section 5.
-- StatCan access route (browser test by the owner, or accept mirror + OECD).
+- StatCan: two planned source changes after the running backtest ends, each recorded and each
+  forcing a recompute of the affected target only: headline CPI base Valet -> StatCan vector
+  41690973 (values identical, verified), and GDP/consumption vintages DBnomics mirror -> direct
+  parsing of 36-10-0431 (to be verified identical first). Retail: StatCan's Fisher volume index
+  differs from the OECD volume index used for the vintages (definitional; owner to choose the live
+  target definition for Phase 5).
 - Chrome extension was not connected in this session, so the agent could not run the
   browser test itself. Internet Archive downloads were denied by the session's permission
   classifier and were not retried.
@@ -169,9 +178,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   515424b0...), loaded through `latest: {source: statcan_manual, ...}` with pseudo-vintages. The
   original definition (all-items excluding food and energy, 18-10-0004) had no public scripted
   source. Valet STATIC_CPIXFET agrees with the file at every overlapping month and is the live
-  cross-check. Live-phase updates: monthly 18-10-0256 download by the owner (preferred) or
-  chaining from Valet's rounded year-over-year rate (fallback, documented). No target is blocked
-  any more.
+  cross-check. Live-phase updates: WDS vector 1675033092 (equal to the file at all 514 months),
+  with the owner's zip as fallback when the API is challenged. No target is blocked any more.
 - Repository visibility: planning and probe docs are on a public remote; PLAN.md Gate 5
   expects private code. Owner to decide before Phase 1.
 

@@ -713,14 +713,31 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
     )
     status_file = workdir / "responses" / "_status.json"
     status = json.loads(status_file.read_text(encoding="utf-8")) if status_file.exists() else {}
+    # Rows are merged into the store one model at a time so that memory stays bounded (a full
+    # run holds about six million forecast rows). Skipped cells (model "-") are rewritten first
+    # for every origin this run touched; then each model replaces its own rows at the origins
+    # where it had tasks. Other models' stored rows at those origins are left untouched.
+    all_origins = {s["origin"] for s in skipped} | {tm["origin"] for tm in task_meta.values()}
+    skipped_meta: dict[str, list[dict]] = {o: [] for o in all_origins}
+    for s in skipped:
+        skipped_meta[s["origin"]].append(s)
+    written: set[str] = set()
+    _merge_fm_rows(root, {}, skipped_meta, {"-"}, written)
+    req_paths = sorted(
+        (workdir / "requests").glob("*.json"), key=lambda q: (q.name.split("__")[0], q.name)
+    )
     by_origin_rows: dict[str, list[dict]] = {}
     by_origin_meta: dict[str, list[dict]] = {}
-    for s in skipped:
-        by_origin_meta.setdefault(s["origin"], []).append(s)
+    current: str | None = None
     n_ok = n_err = 0
-    for rp in sorted((workdir / "requests").glob("*.json")):
-        req = json.loads(rp.read_text(encoding="utf-8"))
+    for rp in req_paths:
         model = rp.name.split("__")[0]
+        if model != current:
+            if current is not None:
+                _merge_fm_rows(root, by_origin_rows, by_origin_meta, {current}, written)
+                by_origin_rows, by_origin_meta = {}, {}
+            current = model
+        req = json.loads(rp.read_text(encoding="utf-8"))
         resp_path = workdir / "responses" / rp.name
         resp = json.loads(resp_path.read_text(encoding="utf-8")) if resp_path.exists() else None
         for t in req["tasks"]:
@@ -798,27 +815,37 @@ def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_RO
                 n_ok += 1
             # variant label for FM rows: the forecast rows keep variant + space separately
             by_origin_meta.setdefault(tm["origin"], []).append(mrow)
-    models_run = {rp.name.split("__")[0] for rp in (workdir / "requests").glob("*.json")}
-    for origin in sorted(set(by_origin_rows) | set(by_origin_meta)):
+    if current is not None:
+        _merge_fm_rows(root, by_origin_rows, by_origin_meta, {current}, written)
+    return {"fm_ok": n_ok, "fm_error": n_err, "origins_written": len(written)}
+
+
+def _merge_fm_rows(
+    root: Path,
+    rows_by_origin: dict[str, list[dict]],
+    meta_by_origin: dict[str, list[dict]],
+    drop_models: set[str],
+    written: set[str],
+) -> None:
+    """Replace the rows of `drop_models` at every origin in the two dicts with the new rows."""
+    for origin in sorted(set(rows_by_origin) | set(meta_by_origin)):
         fpath = root / "forecasts" / "fm" / f"{origin}.parquet"
         mpath = root / "meta" / "fm" / f"{origin}.parquet"
-        new_rows = pd.DataFrame(by_origin_rows.get(origin, []), columns=FORECAST_COLUMNS)
-        new_meta = pd.DataFrame(by_origin_meta.get(origin, []), columns=META_COLUMNS)
+        new_rows = pd.DataFrame(rows_by_origin.get(origin, []), columns=FORECAST_COLUMNS)
+        new_meta = pd.DataFrame(meta_by_origin.get(origin, []), columns=META_COLUMNS)
         if fpath.exists():
             old = pd.read_parquet(fpath)
-            old = old[~old["model"].isin(models_run)]
-            new_rows = pd.concat([old, new_rows], ignore_index=True)
+            new_rows = pd.concat(
+                [old[~old["model"].isin(drop_models)], new_rows], ignore_index=True
+            )
         if mpath.exists():
             oldm = pd.read_parquet(mpath)
-            oldm = oldm[~oldm["model"].isin(models_run | {"-"})]
-            new_meta = pd.concat([oldm, new_meta], ignore_index=True)
+            new_meta = pd.concat(
+                [oldm[~oldm["model"].isin(drop_models)], new_meta], ignore_index=True
+            )
         write_atomic(new_rows, fpath)
         write_atomic(new_meta, mpath)
-    return {
-        "fm_ok": n_ok,
-        "fm_error": n_err,
-        "origins_written": len(set(by_origin_rows) | set(by_origin_meta)),
-    }
+        written.add(origin)
 
 
 # ------------------------------------------------------------------ outturns and manifest

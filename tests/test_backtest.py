@@ -306,3 +306,109 @@ def test_validity_rule_from_default_config_is_numeric():
     rule = bt.validity_rule(load_config())
     assert isinstance(rule["min_llf"], float) and rule["min_llf"] < -1e9
     assert isinstance(rule["max_abs_sd_multiple"], float) and rule["max_abs_sd_multiple"] > 1
+
+
+def _fm_workdir(tmp_path, name, specs, qs=QS):
+    """A stage-2 workdir: `specs` is {model: {origin: scale}}; one monthly task per origin with
+    quantile forecasts scale * (q - 0.5) and a history of 60 unit-variance values."""
+    w = tmp_path / name
+    (w / "requests").mkdir(parents=True)
+    (w / "responses").mkdir()
+    task_meta, status = {}, {}
+    hist = list(np.random.default_rng(1).normal(size=60))
+    for model, origins in specs.items():
+        for origin, scale in origins.items():
+            tid = f"ZZ|x|{origin}"
+            task_meta[f"{model}:{tid}"] = {
+                "origin": origin,
+                "econ": "ZZ",
+                "target": "x",
+                "freq": "M",
+                "variant": "univariate",
+                "input_mode": "realtime",
+                "space": "transformed",
+                "series_id": "rtd:M.ZZ.X",
+                "source_role": "primary",
+                "last_period": "2020-01",
+                "last_level": 100.0,
+                "n_history": 60,
+                "n_vars": 1,
+                "periods": ["2020-02", "2020-03"],
+            }
+            fname = f"{model}__{origin}__{origin}.json"
+            (w / "requests" / fname).write_text(
+                json.dumps({"tasks": [{"id": tid, "history": [hist]}]}), encoding="utf-8"
+            )
+            q = [[scale * (x - 0.5) for x in qs] for _ in range(2)]
+            (w / "responses" / fname).write_text(
+                json.dumps({"results": {tid: {"quantiles": q, "mean": [0.0, 0.0]}}, "errors": {}}),
+                encoding="utf-8",
+            )
+            status[fname[:-5]] = "ok"
+    (w / "task_meta.json").write_text(json.dumps(task_meta), encoding="utf-8")
+    (w / "skipped.json").write_text(
+        json.dumps(
+            [
+                {
+                    "origin": o,
+                    "econ": "ZZ",
+                    "target": "y",
+                    "freq": "M",
+                    "model": "-",
+                    "variant": "-",
+                    "input_mode": "revised",
+                    "status": "skipped",
+                    "note": f"synthetic skip {name}",
+                }
+                for o in sorted({o for v in specs.values() for o in v})
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (w / "weights.json").write_text(json.dumps({m: "w" for m in specs}), encoding="utf-8")
+    (w / "responses" / "_status.json").write_text(json.dumps(status), encoding="utf-8")
+    return w
+
+
+def test_stage3_merges_per_model_and_keeps_other_models_rows(tmp_path):
+    cfg = _synthetic_cfg()
+    root = tmp_path / "store"
+    o1, o2 = "2020-02-25", "2020-03-25"
+    w1 = _fm_workdir(tmp_path, "w1", {"fmA": {o1: 1.0, o2: 1.0}, "fmB": {o1: 1.0, o2: 1.0}})
+    rep = bt.stage3(w1, cfg=cfg, root=root)
+    assert rep == {"fm_ok": 4, "fm_error": 0, "origins_written": 2}
+    f1 = pd.read_parquet(root / "forecasts" / "fm" / f"{o1}.parquet")
+    assert set(f1["model"]) == {"fmA", "fmB"} and len(f1) == 2 * 2 * len(QS)
+    m1 = pd.read_parquet(root / "meta" / "fm" / f"{o1}.parquet")
+    assert sorted(m1["model"]) == ["-", "fmA", "fmB"]
+    # a second run touches fmB at the first origin only: fmA and fmB's other origin are kept,
+    # fmB's rows at that origin are replaced, the skipped rows are rewritten once
+    w2 = _fm_workdir(tmp_path, "w2", {"fmB": {o1: 3.0}})
+    rep = bt.stage3(w2, cfg=cfg, root=root)
+    assert rep == {"fm_ok": 1, "fm_error": 0, "origins_written": 1}
+    f1 = pd.read_parquet(root / "forecasts" / "fm" / f"{o1}.parquet")
+    a, b = f1[f1["model"] == "fmA"], f1[f1["model"] == "fmB"]
+    assert len(a) == len(b) == 2 * len(QS)
+    assert np.isclose(a["value"].abs().max(), 0.4) and np.isclose(b["value"].abs().max(), 1.2)
+    m1 = pd.read_parquet(root / "meta" / "fm" / f"{o1}.parquet")
+    assert sorted(m1["model"]) == ["-", "fmA", "fmB"]
+    assert m1.loc[m1["model"] == "-", "note"].item() == "synthetic skip w2"
+    f2 = pd.read_parquet(root / "forecasts" / "fm" / f"{o2}.parquet")
+    assert set(f2["model"]) == {"fmA", "fmB"} and len(f2) == 2 * 2 * len(QS)
+    m2 = pd.read_parquet(root / "meta" / "fm" / f"{o2}.parquet")
+    assert m2.loc[m2["model"] == "-", "note"].item() == "synthetic skip w1"
+
+
+def test_stage3_stores_guard_failures_as_errors(tmp_path):
+    cfg = _synthetic_cfg()
+    root = tmp_path / "store"
+    w = _fm_workdir(tmp_path, "w", {"fmA": {"2020-02-25": 1e6}})
+    rep = bt.stage3(w, cfg=cfg, root=root)
+    assert rep["fm_ok"] == 0 and rep["fm_error"] == 1
+    m = pd.read_parquet(root / "meta" / "fm" / "2020-02-25.parquet")
+    row = m[m["model"] == "fmA"].iloc[0]
+    assert row["status"] == "error" and row["note"].startswith("numerical failure")
+    assert (
+        not (root / "forecasts" / "fm" / "2020-02-25.parquet").exists()
+        or pd.read_parquet(root / "forecasts" / "fm" / "2020-02-25.parquet").empty
+    )

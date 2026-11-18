@@ -201,6 +201,15 @@ against outturns.
   differing AR/BVAR/naive rows against the backup on all 310 origins (the writer now rewrites
   every file). The guard-scope and DFM-coverage decisions (STATUS, "Blocked or needing the
   owner") come before step 6.
+- 2026-11-18 evening, after the owner's reboot (21 GB free), one job at a time. Step 1: 310
+  origins merged, 74,670 model tasks ok, 0 errors, guard tripped on no model response, note in
+  the run manifest. Step 2 (4 processes, 50 min): 2,563 cells to do over 310 origins (the 41
+  not yet recomputed in full, keyless skipped cells at the other 269), no model work; afterwards
+  the 1,704 skipped benchmark cells all carry a skip key. Step 5 run early on all 310 origins:
+  zero differing AR/BVAR/naive rows against the backup (429,192 / 428,472 / 429,192 rows
+  compared); DFM 57 error -> ok and 0 ok -> error on 5,426 common cells, 169 input-data errors
+  unchanged; guard trips BVAR 11; rows only in the current store are the core CPI benchmark
+  cells, rows only in the backup are the 11 guard-tripped BVAR cells. Step 3 started 18:12.
 
 ## Private summary
 

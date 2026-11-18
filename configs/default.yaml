@@ -33,7 +33,17 @@ vintage_sources:
   # was released after that date; otherwise the edition slides to the next month.
   oecd_edition_rule: checked_same_month
   oecd_dataflow: "OECD.SDD.STES,DSD_STES_REVISIONS@DF_STES_REVISIONS,4.0"
+  # Euro-area OECD editions are a splice of area codes; each edition exists under one code.
+  oecd_area_codes: {CA: [CAN], EA: [EA18, EA19, EA20]}
   ecb_rtd_dataflow: "RTD"
+  # RTD keys downloaded for cross-checking OECD editions (precise dates to 2025-10 only).
+  cross_check_rtd_keys: ["M.S0.Y.I_XCONS.X", "M.S0.Y.O_RTXMOTVD.X"]
+  # OECD series downloaded although not a vintage source for a target (CPI non-revision check,
+  # industrial production as an alternative activity measure).
+  cross_check_oecd:
+    - {econ: CA, freq: M, measure: CP, unit: IX, activity: _Z}
+    - {econ: CA, freq: M, measure: PRVM, unit: IX, activity: BTE}
+    - {econ: EA, freq: M, measure: PRVM, unit: IX, activity: BTE}
 
 targets:
   CA:
@@ -86,13 +96,13 @@ targets:
       name: HICP all items
       freq: M
       vintages: {source: ecb_rtd, key: "M.S0.N.P_C_OV.X", fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
-      latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOTAL, unit: I25}}
+      latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOTAL, unit: I25, geo: EA}}
       transform: log_diff
     hicp_core:
       name: HICP excluding energy, food, alcohol and tobacco
       freq: M
       vintages: null                      # no vintage source; lag-only (Gate 0)
-      latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOT_X_NRG_FOOD, unit: I25}}
+      latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOT_X_NRG_FOOD, unit: I25, geo: EA}}
       transform: log_diff
       exclude_from_q1: true
     unemp:

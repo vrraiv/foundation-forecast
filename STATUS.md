@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-17 (Phase 1 done, Phase 2 starting). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 2 done, Phase 3 starting). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -9,8 +9,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | --- | --- |
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
-| 2 Vintage data layer | In progress |
-| 3 Models and benchmarks | Not started |
+| 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
+| 3 Models and benchmarks | In progress |
 | 4 Backtest and scoring | Not started |
 | 5 Live registry | Not started |
 
@@ -51,6 +51,19 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   expenditure), released on about the 28th of the second month after the quarter.
 
 ## Decisions taken by the agent (owner may overturn)
+
+- Phase 2: every source is reduced to one change-log table (R/D rows dated by vintage), so
+  `as_of` has a single semantics; full-snapshot sources are diffed into it with a 1e-9
+  relative tolerance (OECD CSVs carry float noise such as 5.09999999999999).
+- Phase 2: OECD edition M is dated the 25th of M (`oecd_edition_rule: checked_same_month`).
+  Evidence: in 334 Canadian editions only edition 202104 contained the previous month's CPI
+  (released 2021-04-21); unemployment for M-1 (released first Friday) is present in 109
+  editions. The conservative rule remains a config switch. Owner confirmation still pending.
+- Phase 2: an edition that is empty or whose newest observation is more than 12 months old
+  would be dropped as a broken vintage; none occurred in the downloaded data.
+- Phase 2: ECB "Replace" rows with an empty value are treated as deletes dated VALID_FROM.
+- Phase 2: DBnomics rows are labelled `dbnomics`, never `statcan`; the two providers are never
+  merged into one history.
 
 - Windows, not WSL, for the toolchain: all five models install and run on Windows CPU;
   Windows has 32 GB RAM vs 15 GB in WSL. Task runner will be a `justfile` (neither

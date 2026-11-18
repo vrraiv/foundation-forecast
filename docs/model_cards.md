@@ -51,11 +51,14 @@ boundary is ambiguous between 2026-07-02 and 2026-10-06 and both are recorded.
 - Multivariate variants receive the target plus the conditioning variables selected by the
   rule in `ffcast.models.panel.Panel.multivariate` (coverage at least 80% of the last 240
   months or 80 quarters, not more than 12 periods stale, at most 12 variables), as a balanced
-  panel ending at the target's last observation (conditioning values published after it are
-  not used by the foundation models; only the BVAR and the factor model exploit the ragged
-  edge), and return the target's quantiles. Transforms and aggregations per conditioning
-  series are fixed in `configs/default.yaml`; the realised set per target and origin is
-  written next to each smoke/backtest output.
+  panel ending at the target's last observation: conditioning columns whose last observation
+  is earlier than the target's are dropped for that origin (no values are invented at the
+  ragged edge), interior gaps are carried forward, and only the BVAR and the factor model use
+  observations published after the target's last value. Transforms and aggregations per
+  conditioning series are fixed in `configs/default.yaml`. The realised variable lists per
+  target (`multivariate_vars` for the BVAR, `balanced_fm_vars` for the foundation models; the
+  factor model takes the first 12 monthly series in config order plus the quarterly block)
+  are written to `panels.json` next to each run.
 - Workers refuse to start when the system has less than 4 GB of commit charge available
   (`min_free_commit_mb`), because weight loading then fails unpredictably on Windows.
 
@@ -74,8 +77,10 @@ boundary is ambiguous between 2026-07-02 and 2026-10-06 and both are recorded.
   last observation. Limiting cases tested (tight prior shrinks lags to zero, loose prior
   reproduces OLS).
 - **dfm**: statsmodels `DynamicFactorMQ`, 2 factors, factor order 2, idiosyncratic AR(1), EM with
-  at most 100 iterations, up to 12 monthly variables plus the quarterly block; Gaussian
-  quantiles from the forecast standard errors.
+  at most 100 iterations, the first 12 monthly conditioning variables (config order; the Kalman
+  filter handles missing values) plus the whole quarterly block; predictions for the periods
+  after the target's last observation use the smoothed information set (indicators observed
+  after the target count); Gaussian quantiles from the prediction standard errors.
 - **combo_bench**, **combo_fm**: equal-weight averages of quantiles.
 
 ## Smoke test and runtime
@@ -84,24 +89,20 @@ See `data/smoke/smoke_<origin>.csv` (git-ignored) and the runtime table below, g
 `ffcast smoke --origin 2024-06-25`.
 
 <!-- RUNTIME TABLE START -->
-Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker. Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin.
+Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker; three-stage run (`ffcast smoke`). Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin.
 
 | model | variant | tasks | mean s/task | max s/task | worker wall s | checks |
 | --- | --- | --- | --- | --- | --- | --- |
-| naive | uni | 11 | 0.054 | 0.590 | - | all sane |
-| ar | uni | 11 | 0.010 | 0.025 | - | all sane |
-| bvar | multi | 11 | 0.145 | 0.171 | - | all sane |
-| dfm | multi | 11 | 10.4 | 13.8 | - | all sane |
-| combo_bench | multi | 11 | 0.000 | 0.000 | - | all sane |
-| chronos2 | uni | 11 | 0.05 | 0.06 | 9.2 | all sane |
-| chronos2 | multi | 11 | 0.17 | 0.24 | (same worker) | all sane |
-| tirex | uni | 11 | 0.43 | 0.45 | 11.0 | all sane |
-| tirex2 | uni | 11 | 0.14 | 0.14 | 13.7 | all sane |
-| tirex2 | multi | 11 | 0.53 | 0.71 | (same worker) | all sane |
-| moirai2 | uni | 11 | 0.016 | 0.021 | 5.8 | all sane |
-| timesfm25 | uni | 0 | - | - | - | **not run**: the worker refused to start because the machine had about 2 GB of commit charge free and the 925 MB checkpoint needs about 2.4 GB (see STATUS.md). Verified on a synthetic task from a bare shell the same day (load 29 s, 0.2 s per task). |
+| naive | uni | 11 | 0.054 | 0.594 | - | all sane, step 1 aligned |
+| ar | uni | 11 | 0.010 | 0.026 | - | all sane, step 1 aligned |
+| bvar | multi | 11 | 0.466 | 0.655 | - | all sane, step 1 aligned |
+| dfm | multi | 11 | 5.963 | 12.044 | - | all sane, step 1 aligned |
+| combo_bench | multi | 11 | 0.000 | 0.000 | (same worker) | all sane, step 1 aligned |
+| tirex2 | multi | 11 | 0.457 | 0.711 | (same worker) | all sane, step 1 aligned |
+| moirai2 | univa | 11 | 0.016 | 0.020 | 5.75 | all sane, step 1 aligned |
+| timesfm25 | uni | 0 | - | - | - | **not run**: the worker passed the memory pre-flight but crashed while loading the 925 MB checkpoint (machine commit charge about 3.7 GB free at start; see STATUS.md). Verified on a synthetic task from a bare shell the same day (load 29 s, 0.2 s per task). |
 
-Sane-magnitude rule: every quantile within [min - 3 sd, max + 3 sd] of the target's own transformed history at the origin, quantiles non-decreasing. 55 benchmark checks and 66 foundation-model checks passed; 0 failed.
+Sane-magnitude and step-1 alignment checks: 77 passed, 0 failed (the only failing row is the blocked Canadian core CPI target).
 
 Projected backtest cost per origin (11 targets, two input modes): benchmarks about 4 minutes (dominated by the factor model), foundation models about 1 minute including worker start-up; about 130 monthly origins in the primary window.
 <!-- RUNTIME TABLE END -->

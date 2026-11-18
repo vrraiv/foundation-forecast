@@ -40,7 +40,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 | `oecd:EA.Q.B1GQ_Q.XDC._T` | oecd | 237 | 2001-03-24 | 2026-11-24 | 127 | 100 | 0 / 79 |
 | `oecd:EA.Q.P3_S1M_Q.XDC._T` | oecd | 212 | 2001-03-24 | 2026-11-24 | 126 | 100 | 0 / 79 |
 | `pseudo:eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]` | pseudo | 323 | 2000-01-24 | 2026-11-18 | 323 | 0 | 13 / 181 |
-| `pseudo:valet:V41690973` | pseudo | 382 | 1995-02-24 | 2026-11-18 | 382 | 0 | 72 / 240 |
+| `pseudo:valet:V41690973` | pseudo | 350 | 1995-03-24 | 2026-11-18 | 382 | 0 | 72 / 240 |
 | `rtd:M.S0.N.C_DJESB.X` | rtd | 259 | 2001-01-03 | 2026-10-28 | 478 | 46 | 84 / 336 |
 | `rtd:M.S0.N.C_EUR3M.E` | rtd | 261 | 2001-01-03 | 2026-10-28 | 393 | 11 | 84 / 252 |
 | `rtd:M.S0.N.E_EN00_NGR.X` | rtd | 240 | 2001-01-03 | 2026-10-28 | 405 | 207 | 132 / 264 |
@@ -74,7 +74,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 | `valet:B114039` | valet | 35 | 2009-04-21 | 2026-10-29 | 35 | 0 | 0 / 5 |
 | `valet:BD.CDN.10YR.DQ.YLD` | valet | 6469 | 2001-01-02 | 2026-11-16 | 6469 | 0 | 17 / 3523 |
 | `valet:FXUSDCAD` | valet | 2463 | 2017-01-03 | 2026-11-17 | 2463 | 0 | 0 / 0 |
-| `valet:M.BCPI` | valet | 658 | 1972-01-01 | 2026-10-01 | 658 | 0 | 349 / 517 |
+| `valet:M.BCPI` | valet | 658 | 1972-01-31 | 2026-10-31 | 658 | 0 | 348 / 516 |
 | `valet:V41690973` | valet | 1 | 2026-11-18 | 2026-11-18 | 382 | 0 | 0 / 0 |
 
 ## 2. Vintage gaps, rebasings and composition breaks
@@ -245,7 +245,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 
 - Vintage gaps longer than 120 days: none
 - Suspected rebasings or definitional breaks (vintage, median ratio, periods): none detected
-- Area-code composition splice (first vintage per code): V41690973 from 1995-02-24
+- Area-code composition splice (first vintage per code): V41690973 from 1995-03-24
 
 ### `rtd:M.S0.N.C_DJESB.X`
 
@@ -460,7 +460,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 | `oecd:EA.Q.B1GQ_Q.XDC._T` | 204 | 162 | 55 | 10073 | 54 | 11926 |
 | `oecd:EA.Q.P3_S1M_Q.XDC._T` | 203 | 177 | 85 | 10082 | 83 | 11926 |
 | `pseudo:eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]` | 322 | 24 | 24 | 24 | 18 | 24 |
-| `pseudo:valet:V41690973` | 381 | 24 | 24 | 24 | 18 | 24 |
+| `pseudo:valet:V41690973` | 380 | 24 | 24 | 24 | 18 | 53 |
 | `rtd:M.S0.N.C_DJESB.X` | 394 | 12 | 2 | 9053 | -1 | 12306 |
 | `rtd:M.S0.N.C_EUR3M.E` | 309 | 7 | 2 | 38 | -1 | 150 |
 | `rtd:M.S0.N.E_EN00_NGR.X` | 429 | 21 | 2 | 7713 | -21 | 9015 |
@@ -566,7 +566,11 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   Cause not established; the two are treated as different sources, never merged.
 - **Headline CPI** (`oecd:CA.M.CP.IX._Z`, Valet `V41690973`): unrevised except for
   rebasings (OECD edition ratios at 1999-07, 2004-07, 2009-04, 2013-11, 2018-10; one 0.01
-  change in 2007-07). Treated as vintage-free with publication-lag enforcement.
+  change in 2007-07). Treated as vintage-free with pseudo-vintages: month m visible at the
+  origin of m+1, except reference month January (visible at the origin of m+2) because the
+  January CPI was released on 26 Feb 2015 and 27 Feb 2019. Release dates verified: January
+  2015-2026; other months only Nov 2025 to Nov 2026. Earlier years are unverified; the OECD
+  CPI editions are the fallback/robustness source.
 - **Unemployment rate**: annual LFS seasonal-adjustment revision (late January) reaches the
   OECD February edition in most years and the March edition in 2018, 2024 and 2026 (section
   4). Editions 2025-08/09 showed float-representation noise only (no revision).
@@ -590,10 +594,14 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   2005 (periods before 1991 deleted at 2005-11); HICP rebased to 2025=100 in the 2026-02-04
   vintage; HICP 1990-1995 observations removed at 2024-04-10 (72 blank Replace rows treated
   as deletes).
+- **RTD unemployment gap**: `M.S0.S.L_UNETO.F` has no vintage between 2024-03-06 and
+  2025-07-23 (16 months); at origins in that window the resolver hands the target to the OECD
+  fallback because the RTD vintage is older than 100 days.
 - **Stale RTD keys**: industrial production and retail trade have no vintage after
   2025-10-29. OECD editions are the vintage source for retail; RTD is kept as a cross-check.
-- **No vintage source for HICP excluding energy, food, alcohol and tobacco.** Lag-only series
-  from Eurostat `prc_hicp_minr`.
+- **No vintage source for HICP excluding energy, food, alcohol and tobacco.** Pseudo-vintages
+  from Eurostat `prc_hicp_minr` (month m visible at the origin of m+1; January at m+2). Timing
+  verified only against the ECB HICP calendar for Nov 2026 to Jan 2028.
 - **OECD euro-area CPI editions stopped changing after 202606**: editions 202607-202611 exist
   but repeat the 202606 content (no new months). RTD is the HICP vintage source; the OECD
   series is a cross-check to mid-2026 only.
@@ -607,4 +615,11 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   containing it, which may already be a revised value when the snapshot cadence is coarser
   than the statistical office's release cycle (RTD: 8 a year; OECD: monthly).
 - The real-data tests in `tests/test_real_data.py` ran on the 2026-11-18 download and passed
-  (cross-source growth agreement; six revision spot checks).
+  (cross-source growth agreement; six revision spot checks, of which two were confirmed against
+  the published releases: euro-area unemployment January 2024 first release 6.4%, Canadian
+  unemployment February 2024 first release 5.8%; the other four are regression pins read from
+  the downloaded vintages).
+- Unemployment rates in RTD carry 5-6 decimals until 2025 and 1 decimal from 2026; revisions
+  measured on this series must round to one decimal first.
+- Euro-area unemployment for early 2024 first appears in RTD only in July 2025 (the 16-month
+  gap); Phase 4 must define when a first release is too late to count as a first release.

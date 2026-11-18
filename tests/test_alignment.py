@@ -68,6 +68,28 @@ def test_dfm_step1_period_matches_target_last_plus_one():
     out = DynamicFactorMQBench(1, 1, True, 12, 30).forecast(monthly, 3, QS)
     assert out.meta["step1_period"] == monthly.index[-2]
     assert out.horizon == 3
+    # the indicators observed in the two gap months must sharpen the step-1 prediction
+    # relative to a panel truncated at the target's last observation
+    trunc = DynamicFactorMQBench(1, 1, True, 12, 30).forecast(monthly.iloc[:-2], 3, QS)
+    assert (out.values[0, 2] - out.values[0, 0]) < (trunc.values[0, 2] - trunc.values[0, 0])
+
+
+def test_bvar_handles_conditioning_column_lagging_behind_target():
+    rng = np.random.default_rng(3)
+    n = 200
+    y = np.zeros(n)
+    for t in range(1, n):
+        y[t] = 0.4 * y[t - 1] + rng.standard_normal()
+    x = 0.5 * y + rng.standard_normal(n)
+    df = pd.DataFrame({"y": y, "x": x}, index=_months(n))
+    df.iloc[-3:, 1] = np.nan  # x ends three months before the target
+    m = BVARMinnesota(2, [0.2], [1.0], [1.0], 1.0, draws=100, seed=0, max_vars=12, min_balanced=72)
+    f = m.forecast(df, 2, QS)
+    assert f.meta["partially_observed_rows"] == 3 and f.meta["ragged_gap"] == 0
+    p = pd.Period(df.index[-1], freq="M") + 1
+    assert f.meta["step1_period"] is None  # step 1 is beyond the panel: no label inside it
+    assert f.horizon == 2 and np.isfinite(f.values).all()
+    assert p.year > 0
 
 
 def test_outturn_transformed_is_invariant_to_rebasing():

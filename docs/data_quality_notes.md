@@ -21,7 +21,11 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   Cause not established; the two are treated as different sources, never merged.
 - **Headline CPI** (`oecd:CA.M.CP.IX._Z`, Valet `V41690973`): unrevised except for
   rebasings (OECD edition ratios at 1999-07, 2004-07, 2009-04, 2013-11, 2018-10; one 0.01
-  change in 2007-07). Treated as vintage-free with publication-lag enforcement.
+  change in 2007-07). Treated as vintage-free with pseudo-vintages: month m visible at the
+  origin of m+1, except reference month January (visible at the origin of m+2) because the
+  January CPI was released on 26 Feb 2015 and 27 Feb 2019. Release dates verified: January
+  2015-2026; other months only Nov 2025 to Nov 2026. Earlier years are unverified; the OECD
+  CPI editions are the fallback/robustness source.
 - **Unemployment rate**: annual LFS seasonal-adjustment revision (late January) reaches the
   OECD February edition in most years and the March edition in 2018, 2024 and 2026 (section
   4). Editions 2025-08/09 showed float-representation noise only (no revision).
@@ -50,8 +54,9 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   fallback because the RTD vintage is older than 100 days.
 - **Stale RTD keys**: industrial production and retail trade have no vintage after
   2025-10-29. OECD editions are the vintage source for retail; RTD is kept as a cross-check.
-- **No vintage source for HICP excluding energy, food, alcohol and tobacco.** Lag-only series
-  from Eurostat `prc_hicp_minr`.
+- **No vintage source for HICP excluding energy, food, alcohol and tobacco.** Pseudo-vintages
+  from Eurostat `prc_hicp_minr` (month m visible at the origin of m+1; January at m+2). Timing
+  verified only against the ECB HICP calendar for Nov 2026 to Jan 2028.
 - **OECD euro-area CPI editions stopped changing after 202606**: editions 202607-202611 exist
   but repeat the 202606 content (no new months). RTD is the HICP vintage source; the OECD
   series is a cross-check to mid-2026 only.
@@ -65,4 +70,11 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   containing it, which may already be a revised value when the snapshot cadence is coarser
   than the statistical office's release cycle (RTD: 8 a year; OECD: monthly).
 - The real-data tests in `tests/test_real_data.py` ran on the 2026-11-18 download and passed
-  (cross-source growth agreement; six revision spot checks).
+  (cross-source growth agreement; six revision spot checks, of which two were confirmed against
+  the published releases: euro-area unemployment January 2024 first release 6.4%, Canadian
+  unemployment February 2024 first release 5.8%; the other four are regression pins read from
+  the downloaded vintages).
+- Unemployment rates in RTD carry 5-6 decimals until 2025 and 1 decimal from 2026; revisions
+  measured on this series must round to one decimal first.
+- Euro-area unemployment for early 2024 first appears in RTD only in July 2025 (the 16-month
+  gap); Phase 4 must define when a first release is too late to count as a first release.

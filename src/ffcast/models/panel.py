@@ -79,9 +79,13 @@ class Panel:
                 break
         out = block.loc[window[0] :, keep]
         if balanced:
-            # end at the target's last observation and fill interior gaps of the conditioning
-            # columns by carrying forward (for models that cannot take missing values)
+            # For models that cannot take missing values: end at the target's last observation,
+            # DROP conditioning columns whose last observation is earlier than the target's (no
+            # values are invented at the ragged edge), carry forward interior gaps only, and
+            # keep the rows where everything is observed.
             out = out.loc[:last_t].copy()
+            keep_cols = [tcol] + [c for c in out.columns[1:] if out[c].dropna().index[-1] == last_t]
+            out = out[keep_cols]
             out.iloc[:, 1:] = out.iloc[:, 1:].ffill()
             out = out.dropna()
         return out

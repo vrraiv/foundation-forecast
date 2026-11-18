@@ -76,7 +76,10 @@ class DynamicFactorMQBench:
                 start_p = last_obs + 1
                 n_steps = horizon
             end_p = start_p + n_steps - 1
-            pred = res.get_prediction(start=start_p, end=end_p)
+            # 'smoothed' uses every observation in the panel (incl. indicators observed
+            # after the target's last value) for the in-sample part; the out-of-sample part is
+            # the ordinary forecast
+            pred = res.get_prediction(start=start_p, end=end_p, information_set="smoothed")
         mean_all = pred.predicted_mean[target]
         se_all = pred.se_mean[target]
         if target_is_quarterly:

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import tempfile
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +13,7 @@ import pandas as pd
 
 from ..config import Config, FoundationModel
 from .interface import QuantileForecast
+from .lean import run_request
 from .weights import ensure_weights, weights_digest
 
 REPO = Path(__file__).resolve().parents[3]
@@ -114,24 +113,8 @@ def run_worker(
     with tempfile.TemporaryDirectory() as td:
         rp, op = Path(td) / "request.json", Path(td) / "response.json"
         rp.write_text(json.dumps(req), encoding="utf-8")
-        t0 = time.perf_counter()
-        proc = subprocess.run(
-            [*_env_python(fm.env), str(WORKERS / f"run_{fm.env}.py"), str(rp), str(op)],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            cwd=str(REPO),
-            env=worker_env(),
-        )
-        wall = time.perf_counter() - t0
-        if proc.returncode != 0 or not op.exists():
-            raise RuntimeError(
-                f"worker {fm.env} failed (rc={proc.returncode}):\n{proc.stderr[-4000:]}"
-            )
-        resp = json.loads(op.read_text(encoding="utf-8"))
-    resp["wall_s"] = round(wall, 2)
+        resp = run_request(rp, op, fm.env, timeout=timeout)
     resp["weights_digest"] = weights_digest(manifest)
-    resp["stderr_tail"] = proc.stderr[-2000:]
     return resp
 
 

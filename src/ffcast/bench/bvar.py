@@ -177,9 +177,8 @@ class BVARMinnesota:
         tcol = df.columns[0]
         last_t = df.index[df[tcol].notna()][-1]
         t_pos = int(df.index.get_loc(last_t))
-        gap = len(df) - 1 - t_pos  # rows after the target's last observation
-        # estimation sample: balanced rows up to the target's last observation; if too short,
-        # drop the gappiest conditioning column (deterministic) until it is long enough
+        # estimation sample: the balanced rows (every column observed) up to the target's last
+        # observation; if too short, drop the gappiest conditioning column (deterministic)
         est = df.iloc[: t_pos + 1]
         full = est.dropna()
         while len(full) < self.min_balanced and est.shape[1] > 1:
@@ -189,9 +188,10 @@ class BVARMinnesota:
             full = est.dropna()
         if len(full) < 3 * (1 + self.p):
             raise ValueError("not enough balanced observations for the BVAR")
-        est = est.loc[full.index[0] :]
-        df = df.loc[full.index[0] :]
-        # interior gaps inside the estimation sample are carried forward (recorded)
+        # interior gaps (a column missing a value in the middle of the sample) are carried
+        # forward and counted; trailing gaps are never filled
+        full_pos = int(df.index.get_loc(full.index[-1]))
+        est = df.iloc[: full_pos + 1].loc[full.index[0] :]
         n_interior_gaps = int(est.isna().sum().sum())
         Y = est.ffill().bfill().to_numpy()
         X, Yt = _lags(Y, self.p)
@@ -204,9 +204,12 @@ class BVARMinnesota:
         lml, lam, mu, delta, Xd, Yd = best
         B, S, XtX_inv, nu = _niw_posterior(X, Yt, Xd, Yd)
         n = Y.shape[1]
-        tail = df.iloc[
-            t_pos + 1 :
-        ].to_numpy()  # ragged-edge rows (target NaN, others maybe observed)
+        # rows after the last fully observed row: partially observed (target observed but a
+        # conditioning series missing, or the reverse). Each is drawn conditionally on what is
+        # observed; target draws are collected for rows after the target's last observation.
+        tail = df.iloc[full_pos + 1 :].to_numpy()
+        n_tail = tail.shape[0]
+        n_target_known = t_pos - full_pos  # tail rows where the target is observed
         rng = np.random.default_rng(self.seed)
         sims = np.empty((self.draws, horizon))
         L_xtx = np.linalg.cholesky(XtX_inv + 1e-12 * np.eye(XtX_inv.shape[0]))
@@ -216,20 +219,20 @@ class BVARMinnesota:
             L = np.linalg.cholesky(Sigma)
             hist = Y.copy()
             path = []
-            # steps 1..horizon are the periods after the target's last observation; the first
-            # `gap` of them have other variables observed (conditional draws)
-            for step in range(horizon):
+            for step in range(n_target_known + horizon):
                 x = np.concatenate([[1.0], *[hist[-j] for j in range(1, self.p + 1)]])
                 mean = x @ Bd
-                if step < gap:
+                if step < n_tail:
                     obs = tail[step]
                     known = ~np.isnan(obs)
                     ynew = _conditional_draw(mean, Sigma, obs, known, rng)
                 else:
                     ynew = mean + L @ rng.standard_normal(n)
                 hist = np.vstack([hist, ynew])
-                path.append(ynew[0])
+                if step >= n_target_known:
+                    path.append(ynew[0])
             sims[d] = path
+        gap = n_tail - n_target_known
         if not np.isfinite(sims).all():
             raise ValueError("BVAR simulation produced non-finite values")
         qs = tuple(quantiles)
@@ -246,8 +249,9 @@ class BVARMinnesota:
                 "n": len(full),
                 "vars": list(df.columns),
                 "ragged_gap": gap,
+                "partially_observed_rows": n_tail,
                 "interior_gaps_filled": n_interior_gaps,
-                "step1_period": str(df.index[t_pos + 1]) if gap >= 1 else None,
+                "step1_period": str(df.index[t_pos + 1]) if t_pos + 1 < len(df) else None,
             },
         )
 

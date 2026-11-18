@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 3 under review fixes; Phase 4 not started). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 3 done except TimesFM smoke; awaiting owner input before Phase 4). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -10,7 +10,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
-| 3 Models and benchmarks | **Not done.** Four of five models and all benchmarks pass the smoke test at origin 2024-06-25 (see `docs/model_cards.md`); TimesFM 2.5 has not run through the orchestrator (machine memory, below); Canadian core CPI has no data. A review found and fixed: interleaved month labels in Canadian panels (commodity index), name-guessed transforms (Euribor dropped), sparse policy rates never passing coverage, and step-1 misalignment between models when conditioning data extend past the target (BVAR now simulates the ragged edge conditionally; DFM predicts from the target's last observation; foundation models get a balanced panel). Smoke test rerun after the fixes: all 55 benchmark checks pass and every model's step 1 refers to the same target period per target; the realised conditioning set per target is written to `data/smoke/*_panels.json`. Foundation-model rerun depends on free machine memory (below). |
+| 3 Models and benchmarks | **Done except TimesFM.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and Chronos-2, TiRex, TiRex-2 and Moirai 2.0 pass every sane-magnitude and step-1 alignment check on 11 targets (79 checks); realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. TimesFM 2.5 crashes while loading its 925 MB checkpoint under the machine's low free commit charge (below); it ran correctly from a bare shell. Canadian core CPI blocked (no public scripted source). |
 | 4 Backtest and scoring | Not started |
 | 5 Live registry | Not started |
 
@@ -138,8 +138,12 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Chrome extension was not connected in this session, so the agent could not run the
   browser test itself. Internet Archive downloads were denied by the session's permission
   classifier and were not retried.
-- Items still open from the first response: OpenTimestamps stub in the dry run, GPU use,
-  quarterly frequency of the consumer-spending target.
+- Decisions needed before Phase 4: (1) machine memory (reboot or `wsl --shutdown`) so the
+  TimesFM smoke run can complete; (2) Canadian core CPI: supply a StatCan 18-10-0004 extract
+  by hand (registered through `RawStore.register_manual`) or drop the target; (3) OECD
+  edition rule: the content evidence bounds the edition CUT date (edition 202104 was cut on or
+  after 21 April 2021), not the publication date; both rules (`same_month_eve`,
+  `conservative`) can be run as variants.
 - Repository visibility: planning and probe docs are on a public remote; PLAN.md Gate 5
   expects private code. Owner to decide before Phase 1.
 

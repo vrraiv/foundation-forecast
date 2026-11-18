@@ -62,9 +62,10 @@ targets:
       freq: M
       # Unrevised (verified across OECD editions). Pseudo-vintages: month m is assumed public
       # at the origin of month m+1 (StatCan releases CPI on the 14th-22nd of m+1).
-      # January CPI was released on 26 Feb 2015 and 27 Feb 2019 (after the 25th), so reference
-      # month January becomes visible one origin later (late_months). Other months: released on
-      # the 14th-24th in every year checked (2015-2026).
+      # Release dates verified: January CPI 2015-2026 (26 Feb 2015 and 27 Feb 2019 fall after the
+      # 25th, so reference month January becomes visible one origin later via late_months);
+      # all other months only for Nov 2025 to Nov 2026 (14th-22nd). Earlier years for the other
+      # months are NOT verified; the OECD-edition fallback is the robustness variant.
       vintages: {source: pseudo, base: "valet:V41690973", months_after_period: 1, late_months: {1: 2}, fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
       latest: {source: valet, series: V41690973}
       transform: log_diff
@@ -113,9 +114,11 @@ targets:
       name: HICP excluding energy, food, alcohol and tobacco
       freq: M
       # No vintage source (Gate 0). Pseudo-vintages: month m assumed public at the origin of
-      # month m+1 (final HICP is released on the 17th-24th of m+1). Latest values, so revisions
-      # (small for HICP) are ignored; excluded from Q1.
-      vintages: {source: pseudo, base: "eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]", months_after_period: 1}
+      # month m+1. Verified only against the ECB HICP calendar for Nov 2026 to Jan 2028 (final
+      # HICP on the 17th-24th); January final HICP has fallen on the 23rd-24th and is given the
+      # conservative two-month lag. Latest values, so revisions (small for HICP) are ignored;
+      # excluded from Q1.
+      vintages: {source: pseudo, base: "eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]", months_after_period: 1, late_months: {1: 2}}
       latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOT_X_NRG_FOOD, unit: I25, geo: EA}}
       transform: log_diff
       exclude_from_q1: true

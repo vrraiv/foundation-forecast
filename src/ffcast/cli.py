@@ -74,20 +74,43 @@ def smoke(
 ) -> None:
     """Phase 3 smoke test: every model and benchmark forecasts every target at one origin."""
     import datetime as dt
+    import subprocess
+    import sys
     from pathlib import Path
 
-    from .models.smoke import run_smoke
+    from .models import lean
 
-    mlist = [m for m in models.split(",") if m] or None
+    dt.date.fromisoformat(origin)  # validate
+    root = Path(__file__).resolve().parents[2]
     suffix = "_fm" if skip_bench else ""
-    out = Path(__file__).resolve().parents[2] / "data" / "smoke" / f"smoke_{origin}{suffix}.csv"
-    df = run_smoke(
-        dt.date.fromisoformat(origin), models=mlist, out_path=out, run_bench=not skip_bench
+    workdir = root / "data" / "smoke" / f"{origin}{suffix}"
+    out = root / "data" / "smoke" / f"smoke_{origin}{suffix}.csv"
+    # stage 1 (heavy, exits): panels, benchmarks, worker request files
+    r1 = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ffcast.models.smoke",
+            "stage1",
+            origin,
+            str(workdir),
+            models,
+            "0" if skip_bench else "1",
+        ],
+        cwd=str(root),
     )
-    with_pd_options = df.to_string(index=False, max_colwidth=60)
-    typer.echo(with_pd_options)
-    bad = df[~df["ok"] & (df["variant"] != "wall")]
-    typer.echo(f"\n{len(df)} rows, {len(bad)} failed checks; written to {out}")
+    if r1.returncode != 0:
+        raise typer.Exit(code=r1.returncode)
+    # stage 2 (this lean process): workers one at a time
+    status = lean.run_all(workdir / "requests", workdir / "responses")
+    for k, v in status.items():
+        typer.echo(f"worker {k}: {'ok' if v == 'ok' else 'FAILED: ' + v.splitlines()[-1][:160]}")
+    # stage 3 (heavy): checks and tables
+    r3 = subprocess.run(
+        [sys.executable, "-m", "ffcast.models.smoke", "stage3", str(workdir), str(out)],
+        cwd=str(root),
+    )
+    raise typer.Exit(code=r3.returncode)
 
 
 @app.command()

@@ -76,16 +76,24 @@ See `data/smoke/smoke_<origin>.csv` (git-ignored) and the runtime table below, g
 `ffcast smoke --origin 2024-06-25`.
 
 <!-- RUNTIME TABLE START -->
-Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker.
+Origin 2024-06-25, 11 targets (Canadian core CPI blocked), Windows 11, 24 cores, 4 threads per worker. Runtimes are per task (one target, all horizons); worker wall time includes process start and weight loading, once per origin.
 
-| model | variant | tasks | mean s/task | max s/task | checks |
-| --- | --- | --- | --- | --- | --- |
-| ar | uni | 11 | 0.010 | 0.025 | all sane |
-| bvar | multi | 11 | 0.145 | 0.171 | all sane |
-| combo_bench | multi | 11 | 0.000 | 0.000 | all sane |
-| dfm | multi | 11 | 10.427 | 13.752 | all sane |
-| naive | uni | 11 | 0.054 | 0.590 | all sane |
-| chronos2, timesfm25, tirex, tirex2, moirai2 | - | 0 | - | - | not run: workers refused to start with about 2 GB of commit charge free (machine issue, see STATUS.md); each verified individually on a synthetic task earlier the same day (load 1-25 s, 0.05-0.5 s per task) |
+| model | variant | tasks | mean s/task | max s/task | worker wall s | checks |
+| --- | --- | --- | --- | --- | --- | --- |
+| naive | uni | 11 | 0.054 | 0.590 | - | all sane |
+| ar | uni | 11 | 0.010 | 0.025 | - | all sane |
+| bvar | multi | 11 | 0.145 | 0.171 | - | all sane |
+| dfm | multi | 11 | 10.4 | 13.8 | - | all sane |
+| combo_bench | multi | 11 | 0.000 | 0.000 | - | all sane |
+| chronos2 | uni | 11 | 0.05 | 0.06 | 9.2 | all sane |
+| chronos2 | multi | 11 | 0.17 | 0.24 | (same worker) | all sane |
+| tirex | uni | 11 | 0.43 | 0.45 | 11.0 | all sane |
+| tirex2 | uni | 11 | 0.14 | 0.14 | 13.7 | all sane |
+| tirex2 | multi | 11 | 0.53 | 0.71 | (same worker) | all sane |
+| moirai2 | uni | 11 | 0.016 | 0.021 | 5.8 | all sane |
+| timesfm25 | uni | 0 | - | - | - | **not run**: the worker refused to start because the machine had about 2 GB of commit charge free and the 925 MB checkpoint needs about 2.4 GB (see STATUS.md). Verified on a synthetic task from a bare shell the same day (load 29 s, 0.2 s per task). |
 
-Sane-magnitude rule: every quantile within [min - 3 sd, max + 3 sd] of the target's own transformed history at the origin, quantiles non-decreasing. Benchmarks passed for all 11 targets (55 checks).
+Sane-magnitude rule: every quantile within [min - 3 sd, max + 3 sd] of the target's own transformed history at the origin, quantiles non-decreasing. 55 benchmark checks and 66 foundation-model checks passed; 0 failed.
+
+Projected backtest cost per origin (11 targets, two input modes): benchmarks about 4 minutes (dominated by the factor model), foundation models about 1 minute including worker start-up; about 130 monthly origins in the primary window.
 <!-- RUNTIME TABLE END -->

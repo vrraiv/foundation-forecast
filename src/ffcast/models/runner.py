@@ -95,14 +95,15 @@ def run_worker(
     fm: FoundationModel, settings: dict, tasks: list[Task], *, timeout: int = 3600
 ) -> dict:
     wdir, manifest = ensure_weights(fm, allow_download=settings.get("allow_download", True))
-    # Memory pre-flight threshold proportional to the snapshot size: twice the weights plus
-    # 600 MB for torch, unless the config fixes a value.
-    weights_mb = sum(
-        (wdir / f).stat().st_size for f in manifest["files"] if (wdir / f).exists()
+    # Memory pre-flight threshold proportional to the largest weight file (snapshots may hold
+    # several formats of the same weights): twice that size plus 600 MB for torch, unless the
+    # config fixes a value.
+    largest_mb = max(
+        ((wdir / f).stat().st_size for f in manifest["files"] if (wdir / f).exists()), default=0
     ) // (1 << 20)
     settings = {
         **settings,
-        "min_free_commit_mb": settings.get("min_free_commit_mb", 2 * weights_mb + 600),
+        "min_free_commit_mb": settings.get("min_free_commit_mb", 2 * largest_mb + 600),
     }
     req = {
         "model": fm.hf_id,

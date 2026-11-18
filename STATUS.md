@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 3 in progress: smoke test running). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 3 done except the TimesFM smoke run; Phase 4 starting). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -10,8 +10,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
-| 3 Models and benchmarks | In progress. Five worker environments locked and synced (`envs/*/uv.lock`); weights pinned and hash-verified under `data/models/`; Chronos-2, TiRex, TiRex-2 and Moirai 2.0 workers verified byte-deterministic on a synthetic task; TimesFM 2.5 worker verified only outside the orchestrator (see machine issue below). Benchmarks (naive, AR, BVAR, DFM, combinations) pass the smoke checks at origin 2024-06-25 for 11 targets. `docs/model_cards.md` written; runtime table pending the full smoke run. |
-| 4 Backtest and scoring | Not started |
+| 3 Models and benchmarks | **Done, one gap.** Smoke test at origin 2024-06-25: all benchmarks and Chronos-2, TiRex, TiRex-2, Moirai 2.0 pass every sane-magnitude check on 11 targets; runtimes in `docs/model_cards.md`. TimesFM 2.5 could not be smoke-tested through the orchestrator because the machine has too little free commit charge (its worker refuses to start below about 2.4 GB free); it was verified on a synthetic task from a bare shell. Rerun `ffcast smoke --skip-bench --models timesfm25` once memory is freed. |
+| 4 Backtest and scoring | In progress |
 | 5 Live registry | Not started |
 
 ## Decisions taken by the owner so far (2026-11-17)

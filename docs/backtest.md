@@ -115,17 +115,49 @@ against outturns.
    new choices was taken: `em_initialization: false` in config. Every benchmark cell was then
    recomputed (`BENCH_CODE_VERSION` 2 in the cache key; foundation-model keys unchanged); the
    AR, BVAR and naive values must be identical to the first run and are checked against the
-   backed-up store.
+   backed-up store. Outcome on the 269 of 310 origins recomputed before the run was stopped
+   (2001-01 to 2023-05; the rest is pending): AR, BVAR and naive forecasts identical row for row
+   (1.09 million rows, zero differences, apart from the guard trips in item 3); DFM origins with
+   absurd values 47 -> 0; on the 4,608 DFM cells common to both runs, 53 cells that failed with
+   "matrix not positive definite" or "infs or NaNs" now estimate, no cell went the other way, and
+   169 cells still fail for input-data reasons that pre-date the fix (constant predictor columns
+   92, non-finite input 67, empty panel 10; clustered in 2001, 2009-10 and 2017; `combo_bench`
+   is missing wherever a member is). Those 169 are a data-preparation item, not a model one, and
+   are left as recorded errors.
 3. **Validity guard.** `backtest.validity` (config): a forecast is a numerical failure when a
    quantile or mean is non-finite, the estimator's log-likelihood is below -1e10, or the largest
    absolute quantile or mean exceeds 50 standard deviations of the model's own input history in
    the space it forecast in. Failures are stored as status `error` with the reason, counted in
    the summary, and never as values; the guard runs before the benchmark combination and on every
    foundation-model response. The guard is applied when rows are stored and is not part of the
-   cache key.
+   cache key. What it caught in the recomputed benchmarks (269 origins): zero DFM cells (the
+   initialisation fix removed the breakdown it was written for) and 11 multivariate BVAR cells at
+   the origins of 2020-08 to 2020-11 (Canadian CPI, retail, unemployment, consumption; euro-area
+   consumption) whose forecasts in transformed space were 60 to 1,000 against an input history
+   standard deviation of 0.3 to 1.8, that is, the pandemic shock passing through the VAR. Those
+   cells were `ok` in the first run and are now `error`, so BVAR's own-sample statistics exclude
+   them; the comparison against AR uses common origins and the ex-COVID split is unaffected. The
+   threshold is not changed after seeing this (that would be tuning on the sample); whether the
+   magnitude rule should apply to every model or the guard be limited to non-finite values and
+   the log-likelihood floor is put to the owner before scoring.
 4. **Cache key.** The live-data source (`latest`) was removed from a target's key on 2026-11-18
    because the backtest never reads it; this re-keyed every cell, so the two trial origins of
    Chronos-2 and Moirai are recomputed in the second pass.
+
+## Run log
+
+- 2026-11-18 07:52 full run started; 12:24 benchmark store backed up; 13:02 benchmark recompute
+  (`BENCH_CODE_VERSION` 2) started alongside the model stage.
+- 2026-11-18 15:28 both jobs stopped by the Claude Code harness for machine-wide memory pressure.
+  The model stage had completed all 130 worker files (all five models, 310 origins, every worker
+  `ok`) but the merge into the store (stage 3) had not run; the recompute had rewritten 269 of
+  310 benchmark origins. Nothing was lost: worker responses sit in
+  `data/backtest/work/20261118T075221/responses/`, and the cache skips the recomputed origins.
+  Stage 3 was then changed to merge one model at a time (bounded memory). Restart sequence,
+  awaiting the owner: (1) stage 3 on that workdir, before any other `backtest` call, since stage
+  1 would otherwise see an empty model store and redo the seven-hour model stage; (2) the
+  remaining 41 benchmark origins with `--skip-fm` and nothing running alongside; (3) the second
+  pass (core CPI and the two re-keyed trial origins), then verify, score, SPF.
 
 ## Private summary
 

@@ -142,8 +142,13 @@ The Wayback CDX index answered and lists archived copies of the full-table zips 
 | R package `cansim` 0.4.4 (local R 4.5.1), `get_cansim_vector("v41690973")` | "Problem downloading data, returned status code 403" |
 | npm `statcan-mcp` | not run: same WDS endpoints, no reason to expect a different outcome |
 
-Conclusion: the Cloudflare rule on the `www150` zone blocks every non-browser client, from this
-network and from a cloud host, on both days tested. None of the wrappers (MCP servers, `cansim`,
+| GitHub Actions runner (ubuntu-latest, `.github/workflows/statcan-fetch.yml`, run 44310619180, 2026-11-18 13:08 UTC), stdlib urllib, User-Agent `foundation-forecast-fetch/0.1 (GitHub Actions; public data)`, `getFullTableDownloadCSV` for 18100004, 36100107, 36100104, 14100287, 20100067, 36100431 | all six: 403, `server: cloudflare`, challenge page |
+
+Counter-evidence: the owner's own public repository (vrraiv/sixfigures, `pipeline/series.py`) calls the same `getFullTableDownloadCSV` endpoint from a GitHub runner with stdlib urllib and the User-Agent string `Mozilla/5.0`, and its data-refresh runs of 2026-11-14 05:06 and 05:16 UTC downloaded five full-table zips (17100155, 11100239, 14100459, 18100005, 34100292) successfully. Two explanations fit: (a) the rule was tightened between 14 and 18 November, or (b) the rule challenges requests whose User-Agent does not look like a browser's while letting runner IPs through otherwise. (b) was not tested from here: sending a browser User-Agent to pass a bot filter is not something the agent does. The owner can separate the two by re-running their own sixfigures refresh (housing part) and seeing whether `series.py` still downloads today.
+
+Conclusion: the Cloudflare rule on the `www150` zone blocked every client the agent used, from this
+network, from a Render host and from a GitHub Actions runner, on both days tested; the owner's
+browser-identified script passed from a runner on 14 November. None of the wrappers (MCP servers, `cansim`,
 `stats_can`) does anything a plain HTTP client does not, so they inherit the block. The
 remaining routes are unchanged: (a) the owner downloads the files in a browser and the agent
 registers them with `RawStore.register_manual` (hash-pinned, labelled `manual`); (b) DBnomics

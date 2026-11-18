@@ -23,9 +23,7 @@ import zipfile
 from pathlib import Path
 
 WDS = "https://www150.statcan.gc.ca/t1/wds/rest/"
-HEADERS = {
-    "User-Agent": "foundation-forecast-fetch/0.1 (GitHub Actions; public data; contact via repository)"
-}
+HEADERS = {"User-Agent": "foundation-forecast-fetch/0.1 (GitHub Actions; public data)"}
 
 
 def _get(url: str, timeout: int = 120) -> tuple[int, bytes, dict]:

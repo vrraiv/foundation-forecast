@@ -58,9 +58,13 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   scripted access still blocked on 2026-11-17 and 2026-11-18 (WDS, SDMX REST and the
   36100107-SDMX.zip all 403). Owner suggested the community MCP servers and the R package
   `cansim`: tested 2026-11-18, all blocked (details in `docs/probes/statcan.md` section 1.5);
-  the hosted MCP instance on Render gets the same 403 from its own network, so the block is
-  not specific to this machine. Remaining routes: owner-run browser downloads registered with
-  `RawStore.register_manual`, or the DBnomics mirror + OECD. **Pending.**
+  the hosted MCP instance on Render gets the same 403 from its own network, and so does a
+  GitHub Actions runner with an honestly identified client (`.github/workflows/statcan-fetch.yml`,
+  manual dispatch only, 2026-11-18). The owner's sixfigures workflow fetched StatCan tables from a
+  runner on 2026-11-14 with a `Mozilla/5.0` User-Agent; whether the difference is the date or the
+  User-Agent is untested from here (the agent does not send browser User-Agents to pass bot
+  filters). Remaining routes: owner-run browser downloads registered with
+  `RawStore.register_manual`, the owner's own workflow, or the DBnomics mirror + OECD. **Pending.**
 - Models: four planned plus TiRex-2; TimesFM 3.0 excluded. Owner reviewing Moirai and TiRex
   licences. **Approved subject to licence review.**
 - Repository visibility and gate strictness: owner will revise PLAN.md gates. **Pending.**

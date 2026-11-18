@@ -32,7 +32,9 @@ def valet_series_id(series: str) -> str:
 
 def download_ecb(store: RawStore, flow: str, key: str) -> RawFile:
     name = f"{flow}_{key.replace('.', '_')}.csv"
-    return store.fetch("ecb-fin", name, f"{ECB_BASE}/{flow}/{key}", params={"format": "csvdata"}, timeout=300)
+    return store.fetch(
+        "ecb-fin", name, f"{ECB_BASE}/{flow}/{key}", params={"format": "csvdata"}, timeout=300
+    )
 
 
 def download_valet(store: RawStore, series: str) -> RawFile:
@@ -42,7 +44,19 @@ def download_valet(store: RawStore, series: str) -> RawFile:
 def normalise_ecb(path: Path, flow: str, key: str) -> pd.DataFrame:
     df = pd.read_csv(path, dtype=str)
     if df.empty:
-        return validate_table(pd.DataFrame(columns=["series_id", "ref_period", "value", "vintage_date", "action", "source", "vintage_label"]))
+        return validate_table(
+            pd.DataFrame(
+                columns=[
+                    "series_id",
+                    "ref_period",
+                    "value",
+                    "vintage_date",
+                    "action",
+                    "source",
+                    "vintage_label",
+                ]
+            )
+        )
     sid = ecb_series_id(flow, key)
     val = pd.to_numeric(df["OBS_VALUE"], errors="coerce")
     d = pd.to_datetime(df["TIME_PERIOD"], errors="coerce")
@@ -74,8 +88,21 @@ def normalise_valet_monthly(path: Path, series: str) -> pd.DataFrame:
             continue
         y, m = int(obs["d"][:4]), int(obs["d"][5:7])
         eom = pd.Timestamp(y, m, calendar.monthrange(y, m)[1]).date()
-        rows.append((valet_series_id(series), f"{y}-{m:02d}", float(v), eom, "R", "valet", "own-month"))
-    out = pd.DataFrame(rows, columns=["series_id", "ref_period", "value", "vintage_date", "action", "source", "vintage_label"])
+        rows.append(
+            (valet_series_id(series), f"{y}-{m:02d}", float(v), eom, "R", "valet", "own-month")
+        )
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            "series_id",
+            "ref_period",
+            "value",
+            "vintage_date",
+            "action",
+            "source",
+            "vintage_label",
+        ],
+    )
     return validate_table(out)
 
 
@@ -87,6 +114,19 @@ def normalise_valet_daily(path: Path, series: str) -> pd.DataFrame:
         if v in (None, ""):
             continue
         day = pd.Timestamp(obs["d"]).date()
-        rows.append((valet_series_id(series), day.isoformat(), float(v), day, "R", "valet", "own-date"))
-    out = pd.DataFrame(rows, columns=["series_id", "ref_period", "value", "vintage_date", "action", "source", "vintage_label"])
+        rows.append(
+            (valet_series_id(series), day.isoformat(), float(v), day, "R", "valet", "own-date")
+        )
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            "series_id",
+            "ref_period",
+            "value",
+            "vintage_date",
+            "action",
+            "source",
+            "vintage_label",
+        ],
+    )
     return validate_table(out)

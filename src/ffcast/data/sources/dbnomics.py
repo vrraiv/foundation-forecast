@@ -24,7 +24,9 @@ def series_id(dataset: str, estim: str, price: str, sea_adj: str) -> str:
     return f"{SOURCE}:STATCAN/{dataset}/{estim}.{price}.{sea_adj}"
 
 
-def download_realtime(store: RawStore, dataset: str, estims: list[str], price: str, sea_adj: str) -> RawFile:
+def download_realtime(
+    store: RawStore, dataset: str, estims: list[str], price: str, sea_adj: str
+) -> RawFile:
     dims = json.dumps({"estim": estims, "price": [price], "sea_adj": [sea_adj]})
     name = f"STATCAN_{dataset}_{'-'.join(estims)}_{price}_{sea_adj}.json"
     return store.fetch(
@@ -52,7 +54,9 @@ def parse(path: Path) -> tuple[pd.DataFrame, dict[str, str]]:
         for p, v in zip(s["period"], s["value"], strict=True):
             if v is None or v == "NA":
                 continue
-            rows.append((dims["estim"], dims["price"], dims["sea_adj"], rel_label, _period(p), float(v)))
+            rows.append(
+                (dims["estim"], dims["price"], dims["sea_adj"], rel_label, _period(p), float(v))
+            )
     return (
         pd.DataFrame(rows, columns=["estim", "price", "sea_adj", "release", "ref_period", "value"]),
         labels,
@@ -75,6 +79,10 @@ def normalise(path: Path, dataset: str, estim: str, price: str, sea_adj: str) ->
 
     def snaps():
         for d, g in sub.groupby("_rel", sort=True):
-            yield d, g["release"].iloc[0], pd.Series(g["value"].to_numpy(), index=g["ref_period"].to_numpy())
+            yield (
+                d,
+                g["release"].iloc[0],
+                pd.Series(g["value"].to_numpy(), index=g["ref_period"].to_numpy()),
+            )
 
     return snapshots_to_changelog(snaps(), series_id(dataset, estim, price, sea_adj), SOURCE)

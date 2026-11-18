@@ -35,6 +35,7 @@ class FoundationModel(BaseModel):
     hf_id: str
     revision: str = Field(pattern=r"^[0-9a-f]{40}$")
     weights_date: str
+    training_cutoff: str | None = None  # YYYY-MM from the model card; None when not stated
     licence: str
     env: str
     variants: list[Literal["univariate", "multivariate"]]
@@ -51,6 +52,7 @@ class Config(BaseModel):
     targets: dict[str, dict[str, Target]]
     conditioning: dict[str, list[dict[str, Any]]]
     models: dict[str, dict[str, Any]]
+    backtest: dict[str, Any]
     scoring: dict[str, Any]
     registry: dict[str, Any]
 

@@ -100,7 +100,9 @@ def snapshots_to_changelog(
     return validate_table(pd.DataFrame(rows))
 
 
-def _row(sid: str, period: str, value: float, vdate: dt.date, action: str, source: str, label: str) -> dict:
+def _row(
+    sid: str, period: str, value: float, vdate: dt.date, action: str, source: str, label: str
+) -> dict:
     return {
         "series_id": sid,
         "ref_period": period,
@@ -139,7 +141,9 @@ def as_of(
         s = s.sort_values(["ref_period", "_vd"], kind="stable")
         last = s.groupby("ref_period", sort=True).tail(1)
         last = last[last["action"] == "R"]
-        ser = pd.Series(last["value"].to_numpy(dtype=float), index=last["ref_period"].to_numpy(), name=sid)
+        ser = pd.Series(
+            last["value"].to_numpy(dtype=float), index=last["ref_period"].to_numpy(), name=sid
+        )
         ser.index.name = "ref_period"
         out[sid] = ser.sort_index()
     return out

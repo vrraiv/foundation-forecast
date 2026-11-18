@@ -9,6 +9,8 @@ observed level of the same vintage."""
 
 from __future__ import annotations
 
+import datetime as dt
+
 import numpy as np
 import pandas as pd
 
@@ -55,10 +57,9 @@ def monthly_mean_from_daily(daily: pd.Series) -> pd.Series:
     return m
 
 
-def monthly_eom_ffill_from_daily(daily: pd.Series, through: "dt.date") -> pd.Series:
+def monthly_eom_ffill_from_daily(daily: pd.Series, through: dt.date) -> pd.Series:
     """For date-of-change series (policy rates): forward-fill to a daily calendar up to the day
     before `through` and take each complete month's last value; index 'YYYY-MM'."""
-    import datetime as dt
 
     if daily.empty:
         return pd.Series(dtype=float)

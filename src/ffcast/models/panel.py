@@ -9,6 +9,13 @@ defined in exactly one place:
   (the current, incomplete month is dropped);
 - quarterly conditioning: OECD / RTD quarterly series, transformed.
 
+Input modes (config backtest.input_modes): "realtime" uses `as_of(origin)`; "revised" uses the
+vintage visible at a pinned later date (`revised_as_of`, the data snapshot date) cut to the
+reference periods visible at the origin, so the information horizon is identical and only the
+values differ. Level blocks (`monthly_lv`, `quarterly_lv`) hold the same series untransformed
+for the levels variant; variable selection is always made on the transformed block so both
+variants see the same variables.
+
 Series whose transform is undefined (non-positive levels for log_diff) are dropped and named
 in the result so the drop is visible.
 """
@@ -42,8 +49,13 @@ class Panel:
     monthly: pd.DataFrame  # transformed, target first when the target is monthly
     quarterly: pd.DataFrame  # transformed, target first when the target is quarterly
     dropped: list[str] = field(default_factory=list)
+    input_mode: str = "realtime"
+    monthly_lv: pd.DataFrame | None = None  # same columns as `monthly`, untransformed
+    quarterly_lv: pd.DataFrame | None = None
 
-    def univariate(self) -> pd.Series:
+    def univariate(self, space: str = "transformed") -> pd.Series:
+        if space == "level":
+            return self.target_levels.loc[self.target_tr.index[0] :]
         return self.target_tr
 
     def multivariate(
@@ -52,6 +64,7 @@ class Panel:
         min_coverage: float = 0.8,
         max_stale: int = 12,
         balanced: bool = False,
+        space: str = "transformed",
     ) -> pd.DataFrame:
         """Target plus same-frequency conditioning variables, aligned on the target's index.
 
@@ -77,6 +90,11 @@ class Panel:
             keep.append(c)
             if max_vars is not None and len(keep) >= max_vars:
                 break
+        if space == "level":
+            lv = self.monthly_lv if self.freq == "M" else self.quarterly_lv
+            if lv is None:
+                raise ValueError("panel was built without level blocks")
+            block = lv
         out = block.loc[window[0] :, keep]
         if balanced:
             # For models that cannot take missing values: end at the target's last observation,
@@ -161,14 +179,28 @@ def _regularise(df: pd.DataFrame, freq: str) -> pd.DataFrame:
 
 
 def build_panel(
-    cfg: Config, table: pd.DataFrame, econ: str, target: str, origin: dt.date
+    cfg: Config,
+    table: pd.DataFrame,
+    econ: str,
+    target: str,
+    origin: dt.date,
+    input_mode: str = "realtime",
+    revised_as_of: dt.date | None = None,
 ) -> Panel | None:
+    if input_mode not in ("realtime", "revised"):
+        raise ValueError(f"unknown input_mode {input_mode!r}")
+    if input_mode == "revised" and revised_as_of is None:
+        raise ValueError("revised input mode needs a pinned revised_as_of date")
     tcfg = cfg.targets[econ][target]
     h = tg.history(cfg, table, econ, target, origin)
     if h is None:
         return None
     levels, res = h
     levels = levels.dropna()
+    if input_mode == "revised":
+        # same resolved series, latest pinned vintage, cut to the periods visible at the origin
+        rev = as_of(table, [res.series_id], revised_as_of, strict=False)[res.series_id]
+        levels = rev.reindex(levels.index).dropna()
     if len(levels) < 3:
         return None
     kind = tcfg.transform
@@ -179,7 +211,10 @@ def build_panel(
     specs = cfg.conditioning.get(econ, [])
     sids = [_cond_sid(s, econ) for s in specs]
     raw = as_of(table, sids, origin)
-    monthly, quarterly, dropped = {}, {}, []
+    if input_mode == "revised":
+        rev_raw = as_of(table, sids, revised_as_of, strict=False)
+        raw = {sid: rev_raw[sid].reindex(raw[sid].index).dropna() for sid in sids}
+    monthly, quarterly, monthly_lv, quarterly_lv, dropped = {}, {}, {}, {}, []
     for spec, sid in zip(specs, sids, strict=True):
         s = raw[sid].dropna()
         if s.empty:
@@ -201,18 +236,30 @@ def build_panel(
             continue
         if fq == "M":
             monthly[sid] = tr
+            monthly_lv[sid] = s
         else:
             quarterly[sid] = tr
+            quarterly_lv[sid] = s
     m = pd.DataFrame(monthly)
     q = pd.DataFrame(quarterly)
+    m_lv = pd.DataFrame(monthly_lv)
+    q_lv = pd.DataFrame(quarterly_lv)
+
+    def _prepend(target: pd.Series, block: pd.DataFrame) -> pd.DataFrame:
+        t = target.rename(res.series_id).to_frame()
+        out = t if block.empty else pd.concat([t, block], axis=1)
+        return out.loc[ttr.index[0] :]
+
     if tcfg.freq == "M":
-        m = pd.concat([ttr.rename(res.series_id), m], axis=1)
-        m = m.loc[ttr.index[0] :]
+        m = _prepend(ttr, m)
+        m_lv = _prepend(levels, m_lv)
     else:
-        q = pd.concat([ttr.rename(res.series_id), q], axis=1)
-        q = q.loc[ttr.index[0] :]
+        q = _prepend(ttr, q)
+        q_lv = _prepend(levels, q_lv)
     m = _regularise(m.sort_index(), "M")
     q = _regularise(q.sort_index(), "Q")
+    m_lv = _regularise(m_lv.sort_index(), "M").reindex(m.index)[m.columns] if not m.empty else m_lv
+    q_lv = _regularise(q_lv.sort_index(), "Q").reindex(q.index)[q.columns] if not q.empty else q_lv
     return Panel(
         origin,
         econ,
@@ -226,4 +273,7 @@ def build_panel(
         m,
         q,
         dropped,
+        input_mode,
+        m_lv,
+        q_lv,
     )

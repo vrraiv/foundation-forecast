@@ -22,7 +22,11 @@ SOURCE = "statcan"
 def try_download_full_table(store: RawStore, product_id: str) -> RawFile | None:
     """getFullTableDownloadCSV returns a JSON with a zip URL; both hops may be challenged."""
     try:
-        meta = store.fetch(SOURCE, f"{product_id}_download_link.json", f"{WDS}/getFullTableDownloadCSV/{product_id}/en")
+        meta = store.fetch(
+            SOURCE,
+            f"{product_id}_download_link.json",
+            f"{WDS}/getFullTableDownloadCSV/{product_id}/en",
+        )
     except DownloadError:
         return None
     import json
@@ -51,7 +55,9 @@ def find_manual_table(store: RawStore, product_id: str) -> RawFile | None:
         if name in store.verify(MANUAL_SOURCE, day):
             raise ValueError(f"{p}: bytes do not match the manifest hash")
         meta = store._load_manifest(MANUAL_SOURCE, day)["files"][name]
-        return RawFile(MANUAL_SOURCE, day, name, p, meta["sha256"], None, meta["fetched_at_utc"], None)
+        return RawFile(
+            MANUAL_SOURCE, day, name, p, meta["sha256"], None, meta["fetched_at_utc"], None
+        )
     return None
 
 
@@ -77,7 +83,9 @@ def manual_series_id(product_id: str, vector: str) -> str:
     return f"statcan:{product_id}:{vector}"
 
 
-def normalise_manual_latest(path: Path, product_id: str, member: dict[str, str], download_date: dt.date) -> tuple[pd.DataFrame, str]:
+def normalise_manual_latest(
+    path: Path, product_id: str, member: dict[str, str], download_date: dt.date
+) -> tuple[pd.DataFrame, str]:
     """One latest-data snapshot from an owner-supplied full-table zip. Returns the change-log
     table and its series id. Values flagged '..' (not available) are dropped."""
     df = parse_full_table_csv(read_table_zip(path))
@@ -87,7 +95,9 @@ def normalise_manual_latest(path: Path, product_id: str, member: dict[str, str],
     if sub["REF_DATE"].duplicated().any():
         raise ValueError(f"{sid}: duplicated REF_DATE in selection")
     s = pd.Series(sub["VALUE"].to_numpy(dtype=float), index=sub["REF_DATE"].to_numpy()).sort_index()
-    return snapshots_to_changelog([(download_date, f"manual file {download_date}", s)], sid, SOURCE), sid
+    return snapshots_to_changelog(
+        [(download_date, f"manual file {download_date}", s)], sid, SOURCE
+    ), sid
 
 
 def read_table_zip(path: Path) -> pd.DataFrame:
@@ -127,9 +137,13 @@ def normalise_realtime_table(
     return snapshots_to_changelog(snaps(), series_id, SOURCE)
 
 
-def normalise_latest(df: pd.DataFrame, member_filter: dict[str, str], series_id: str, download_date: dt.date) -> pd.DataFrame:
+def normalise_latest(
+    df: pd.DataFrame, member_filter: dict[str, str], series_id: str, download_date: dt.date
+) -> pd.DataFrame:
     sub = df
     for col, val in member_filter.items():
         sub = sub[sub[col] == val]
     s = pd.Series(sub["VALUE"].to_numpy(), index=sub["REF_DATE"].to_numpy())
-    return snapshots_to_changelog([(download_date, f"download {download_date}", s)], series_id, SOURCE)
+    return snapshots_to_changelog(
+        [(download_date, f"download {download_date}", s)], series_id, SOURCE
+    )

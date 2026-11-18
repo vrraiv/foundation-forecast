@@ -114,15 +114,99 @@ def smoke(
 
 
 @app.command()
-def backtest() -> None:
-    """Run the historical backtest (Phase 4)."""
-    raise typer.Exit(code=_not_implemented("backtest"))
+def backtest(
+    window: str = typer.Option("primary", help="primary | extension | all"),
+    first: str = typer.Option("", help="First origin YYYY-MM-DD (overrides the window start)"),
+    last: str = typer.Option("", help="Last origin YYYY-MM-DD (overrides the window end)"),
+    models: str = typer.Option("", help="Comma-separated foundation models (default all)"),
+    modes: str = typer.Option("", help="Comma-separated input modes (default from config)"),
+    skip_bench: bool = typer.Option(False, help="Do not run the classical benchmarks"),
+    skip_fm: bool = typer.Option(False, help="Do not run the foundation models"),
+    processes: int = typer.Option(0, help="Benchmark processes (default from config)"),
+    force: bool = typer.Option(False, help="Recompute even when the cache key matches"),
+    verify: int = typer.Option(
+        0, help="Recompute benchmarks at N stored origins and compare instead of running"
+    ),
+) -> None:
+    """Phase 4 backtest: three stages (heavy stage 1 and 3 in subprocesses, lean stage 2)."""
+    import datetime as dt
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from .config import load_config
+    from .eval.backtest import BACKTEST_ROOT, origin_list
+    from .models import lean
+
+    cfg = load_config()
+    origins = origin_list(cfg, window, first or None, last or None)
+    root = Path(__file__).resolve().parents[2]
+    if verify:
+        import random
+
+        rng = random.Random(0)
+        from .eval.store import read_meta
+
+        have = sorted({dt.date.fromisoformat(o) for o in read_meta()["origin"].unique()})
+        pick = rng.sample(have, min(verify, len(have)))
+        spec = json.dumps({"origins": [o.isoformat() for o in pick]})
+        r = subprocess.run(
+            [sys.executable, "-m", "ffcast.eval.backtest", "verify", spec], cwd=str(root)
+        )
+        raise typer.Exit(code=r.returncode)
+    workdir = BACKTEST_ROOT / "work" / dt.datetime.now().strftime("%Y%m%dT%H%M%S")
+    spec = {
+        "origins": [o.isoformat() for o in origins],
+        "workdir": str(workdir),
+        "modes": [m for m in modes.split(",") if m] or None,
+        "run_bench": not skip_bench,
+        "models": [] if skip_fm else ([m for m in models.split(",") if m] or None),
+        "processes": processes or None,
+        "force": force,
+    }
+    typer.echo(f"{len(origins)} origins {origins[0]} .. {origins[-1]}; workdir {workdir}")
+    r1 = subprocess.run(
+        [sys.executable, "-m", "ffcast.eval.backtest", "stage1", json.dumps(spec)], cwd=str(root)
+    )
+    if r1.returncode != 0:
+        raise typer.Exit(code=r1.returncode)
+    if (workdir / "requests").exists() and any((workdir / "requests").glob("*.json")):
+        status = lean.run_all(workdir / "requests", workdir / "responses")
+        for k, v in status.items():
+            typer.echo(
+                f"worker {k}: {'ok' if v == 'ok' else 'FAILED: ' + v.splitlines()[-1][:160]}"
+            )
+    r3 = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ffcast.eval.backtest",
+            "stage3",
+            json.dumps({"workdir": str(workdir)}),
+        ],
+        cwd=str(root),
+    )
+    raise typer.Exit(code=r3.returncode)
 
 
 @app.command()
 def score() -> None:
-    """Regenerate scoring tables (Phase 4)."""
-    raise typer.Exit(code=_not_implemented("score"))
+    """Regenerate every scoring table from the forecast store (Phase 4). Output stays under
+    data/backtest/tables (private until Gate 4)."""
+    from .eval.backtest import build_outturns
+    from .eval.bias import write_bias_tables
+    from .eval.scoring import score_tables, write_tables
+
+    rep = build_outturns()
+    typer.echo(f"outturns: {rep}")
+    tables = score_tables()
+    if not tables:
+        typer.echo("no forecasts stored")
+        raise typer.Exit(code=1)
+    d = write_tables(tables)
+    typer.echo(f"wrote {d} ({', '.join(f'{k}={len(v)}' for k, v in tables.items())})")
+    typer.echo(f"wrote {write_bias_tables()}")
 
 
 @app.command("registry-run")

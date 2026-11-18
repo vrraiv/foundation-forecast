@@ -33,7 +33,11 @@ def series_id(key: str) -> str:
 def download_history(store: RawStore, key: str) -> RawFile:
     name = f"RTD_{key.replace('.', '_')}_history.csv"
     return store.fetch(
-        SOURCE, name, f"{BASE}/{key}", params={"format": "csvdata", "includeHistory": "true"}, timeout=600
+        SOURCE,
+        name,
+        f"{BASE}/{key}",
+        params={"format": "csvdata", "includeHistory": "true"},
+        timeout=600,
     )
 
 
@@ -77,12 +81,18 @@ def normalise(path: Path) -> tuple[pd.DataFrame, list[str]]:
                 # vintage onward (seen for HICP 1990-1995 at 2024-04-10, OBS_STATUS Q).
                 # Treated as a delete dated VALID_FROM; counted, not guessed.
                 blank_replaces += 1
-                rows.append((sid, r.TIME_PERIOD, np.nan, _date(r.VALID_FROM), "D", SOURCE, r.VALID_FROM))
+                rows.append(
+                    (sid, r.TIME_PERIOD, np.nan, _date(r.VALID_FROM), "D", SOURCE, r.VALID_FROM)
+                )
                 continue
             if pd.isna(val):
-                problems.append(f"{sid} {r.TIME_PERIOD} @ {r.VALID_FROM}: non-numeric value {r.OBS_VALUE!r}")
+                problems.append(
+                    f"{sid} {r.TIME_PERIOD} @ {r.VALID_FROM}: non-numeric value {r.OBS_VALUE!r}"
+                )
                 continue
-            rows.append((sid, r.TIME_PERIOD, float(val), _date(r.VALID_FROM), "R", SOURCE, r.VALID_FROM))
+            rows.append(
+                (sid, r.TIME_PERIOD, float(val), _date(r.VALID_FROM), "R", SOURCE, r.VALID_FROM)
+            )
         elif act == "Delete":
             when = r.VALID_TO or r.VALID_FROM
             if not when:
@@ -92,11 +102,22 @@ def normalise(path: Path) -> tuple[pd.DataFrame, list[str]]:
         else:
             problems.append(f"{sid} {r.TIME_PERIOD}: unknown ACTION {act!r}")
     if blank_replaces:
-        problems.append(f"{sid}: {blank_replaces} Replace rows with empty value treated as deletes (info)")
+        problems.append(
+            f"{sid}: {blank_replaces} Replace rows with empty value treated as deletes (info)"
+        )
     if not rows:
         return empty_table(), problems
     out = pd.DataFrame(
-        rows, columns=["series_id", "ref_period", "value", "vintage_date", "action", "source", "vintage_label"]
+        rows,
+        columns=[
+            "series_id",
+            "ref_period",
+            "value",
+            "vintage_date",
+            "action",
+            "source",
+            "vintage_label",
+        ],
     )
     # Order within a vintage date: Deletes after Replaces of the same instant are rare; keep
     # file order (stable) which is what as_of relies on.
@@ -104,7 +125,11 @@ def normalise(path: Path) -> tuple[pd.DataFrame, list[str]]:
 
 
 def _date(ts: str):
-    return pd.Timestamp(ts).tz_convert(None).date() if "+" in ts or ts.endswith("Z") else pd.Timestamp(ts).date()
+    return (
+        pd.Timestamp(ts).tz_convert(None).date()
+        if "+" in ts or ts.endswith("Z")
+        else pd.Timestamp(ts).date()
+    )
 
 
 def parse_bulk_quarterly_csv(text: str) -> pd.DataFrame:

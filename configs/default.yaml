@@ -219,6 +219,7 @@ models:
       hf_id: amazon/chronos-2
       revision: 29ec3766d36d6f73f0696f85560a422f50e8498c
       weights_date: "2025-10-30"
+      training_cutoff: null            # paper lists datasets, no date
       licence: Apache-2.0
       env: chronos
       variants: [univariate, multivariate]
@@ -226,6 +227,7 @@ models:
       hf_id: google/timesfm-2.5-200m-pytorch
       revision: 1d952420fba87f3c6dee4f240de0f1a0fbc790e3
       weights_date: "2025-10-01"
+      training_cutoff: "2023-11"       # model card: Wikimedia pageviews cutoff Nov 2023 (Google Trends end-2022)
       licence: Apache-2.0
       env: timesfm
       variants: [univariate]
@@ -233,6 +235,7 @@ models:
       hf_id: NX-AI/TiRex
       revision: 43ebaaff068c1390785c387b3e5178df3f4c92ca
       weights_date: "2025-05-26"
+      training_cutoff: null            # paper lists datasets, no date
       licence: NXAI-Community
       env: tirex
       variants: [univariate]
@@ -240,6 +243,7 @@ models:
       hf_id: NX-AI/TiRex-2
       revision: 352636173653592b6dceb3fbeee9224ca97952a9
       weights_date: "2026-10-06"       # safetensors upload; ckpt 2026-07-02. Ambiguous, see feasibility.
+      training_cutoff: null            # lotsa_data tag only, no date
       licence: Apache-2.0
       env: tirex2
       variants: [univariate, multivariate]
@@ -247,6 +251,7 @@ models:
       hf_id: Salesforce/moirai-2.0-R-small
       revision: 30f43ff08c8494f4943ae1521e9d4e94a0fbb389
       weights_date: "2025-08-06"
+      training_cutoff: "2025-01"       # paper: internal Salesforce data to about Jan 2025
       licence: CC-BY-NC-4.0
       env: moirai
       variants: [univariate]
@@ -275,6 +280,53 @@ models:
     # or sample splits; the exclusion window applies to scoring only.
     combo_bench: {kind: equal_weight, of: [ar, bvar, dfm]}
     combo_fm: {kind: equal_weight, of: [chronos2, timesfm25, tirex, tirex2, moirai2]}
+
+backtest:
+  # Rules fixed on 2026-11-18 before the first full run; changing one after results exist is
+  # tuning and must be recorded in STATUS.md as a deviation.
+  #
+  # input_modes. realtime: every series as of the origin (strict). revised: the LATEST vintage
+  # of the SAME resolved series, cut to the reference periods visible in the real-time vintage
+  # at that origin (same information horizon, final values), transformed within the latest
+  # vintage. Targets with exclude_from_q1 (pseudo-vintages, already latest values) are skipped
+  # in revised mode. Unrevised financial series are identical in both modes.
+  input_modes: [realtime, revised]
+  # variants. stationary: models receive the transformed target (and transformed conditioning
+  # panel) and are scored in that space; this is the primary specification for every model.
+  # levels: foundation models only; they receive the level (index, or the rate for diff
+  # targets) and the level panel; level quantiles are mapped back exactly to (a) the step-1
+  # transform and (b) the cumulative h-step change from the last observed level, which are
+  # monotone functions of the step-h level quantile. Per-step changes at steps >= 2 cannot be
+  # derived from marginal level quantiles and are not scored for this variant. Benchmarks are
+  # built for stationary inputs and do not get a levels variant.
+  variants: [stationary, levels]
+  levels_variant_models: foundation_only
+  # Every step 1..max(horizon) is stored (fixed-event sequences for Q4 need them); the scoring
+  # tables use `horizons`.
+  store_all_steps: true
+  # A target is skipped at an origin with less in-vintage history than this (= min_history_years).
+  min_history_periods: {M: 120, Q: 40}
+  # Equal-weight combinations exist only when every member forecast exists at that origin.
+  combos_require_all_members: true
+  # A first release counts as a first release only if it appeared no later than the series'
+  # median first-release lag (first appearance minus period end, over all periods) plus the
+  # source's max_staleness_days after the period end. Later first appearances (euro-area
+  # unemployment Jan 2024, first in RTD on 2025-07-23) are recorded as late, excluded from
+  # first-release scoring and counted in the tables. The revised outturn is unaffected.
+  late_first_release: median_lag_plus_staleness
+  # Decimals to round before measuring revisions / outturn differences, per target name
+  # (RTD unemployment carries 5-6 decimals until 2025 and 1 decimal from 2026).
+  revision_rounding: {unemp: 1}
+  # Execution: worker requests cover this many origins per file; benchmark origins run in this
+  # many processes with this many BLAS threads each (fixed, so results do not depend on load).
+  origins_per_worker_request: 12
+  parallel_benchmark_processes: 6
+  threads_per_process: 4
+  # Per-origin cache. Rows are keyed by the config slice that affects them (targets, horizons,
+  # conditioning, model settings, benchmarks, backtest rules), the data-manifest hashes of the
+  # series used, and the weights digest; a rerun must reproduce cached values exactly
+  # (`ffcast backtest --verify` recomputes a sample and compares).
+  cache: data/backtest
 
 scoring:
   quantiles: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]

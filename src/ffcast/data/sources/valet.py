@@ -41,4 +41,6 @@ def _period(d: str) -> str:
 
 def normalise(path: Path, series: str, download_date: dt.date) -> pd.DataFrame:
     ser = parse(path, series)
-    return snapshots_to_changelog([(download_date, f"download {download_date}", ser)], series_id(series), SOURCE)
+    return snapshots_to_changelog(
+        [(download_date, f"download {download_date}", ser)], series_id(series), SOURCE
+    )

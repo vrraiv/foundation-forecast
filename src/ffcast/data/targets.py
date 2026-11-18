@@ -74,7 +74,9 @@ def _fresh_vintage_before(table: pd.DataFrame, sid: str, origin: dt.date, limits
     return (origin - before.max()).days <= int(limit)
 
 
-def history(cfg, table: pd.DataFrame, econ: str, target: str, origin: dt.date) -> tuple[pd.Series, Resolved] | None:
+def history(
+    cfg, table: pd.DataFrame, econ: str, target: str, origin: dt.date
+) -> tuple[pd.Series, Resolved] | None:
     r = resolve(cfg, table, econ, target, origin)
     if r is None:
         return None
@@ -101,7 +103,14 @@ def outturn(table: pd.DataFrame, sid: str, period: str, months_after: int = 12) 
     first = as_of(table, [sid], d0 + dt.timedelta(days=1))[sid].get(period)
     d1 = _add_months(d0, months_after)
     later = as_of(table, [sid], d1, strict=False)[sid].get(period)
-    return Outturn(period, sid, None if first is None else float(first), d0, None if later is None else float(later), d1)
+    return Outturn(
+        period,
+        sid,
+        None if first is None else float(first),
+        d0,
+        None if later is None else float(later),
+        d1,
+    )
 
 
 def outturn_transformed(

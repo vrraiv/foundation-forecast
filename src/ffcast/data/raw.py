@@ -111,8 +111,14 @@ class RawStore:
             m = self._load_manifest(source)["files"].get(name)
             if m and m.get("http_status") == 200:
                 return RawFile(
-                    source, self.today, name, d / name, m["sha256"], m.get("url"),
-                    m["fetched_at_utc"], 200,
+                    source,
+                    self.today,
+                    name,
+                    d / name,
+                    m["sha256"],
+                    m.get("url"),
+                    m["fetched_at_utc"],
+                    200,
                 )
         h = {"User-Agent": USER_AGENT, **(headers or {})}
         resp = requests.get(url, params=params, headers=h, timeout=timeout)
@@ -126,9 +132,7 @@ class RawStore:
         """Hash and record a file the owner downloaded by hand (e.g. a StatCan zip fetched in a
         browser). The file is copied into the store; provenance is `manual`."""
         content = Path(path).read_bytes()
-        return self.put(
-            f"{source}-manual", Path(path).name, content, None, None, {"note": note}
-        )
+        return self.put(f"{source}-manual", Path(path).name, content, None, None, {"note": note})
 
     def list_days(self, source: str) -> list[dt.date]:
         d = self.root / source

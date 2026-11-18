@@ -54,3 +54,6 @@ addopts = "-q"
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501", "N803", "N806"]
 "src/ffcast/bench/*" = ["N803", "N806"]
+# report builders and the harness carry long literal strings and table rows
+"src/ffcast/data/*" = ["E501"]
+"src/ffcast/eval/*" = ["E501", "N803", "N806"]  # matrix notation in the scoring code

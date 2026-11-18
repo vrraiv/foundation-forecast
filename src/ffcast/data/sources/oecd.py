@@ -39,7 +39,9 @@ def series_id(ref_area: str, freq: str, measure: str, unit: str, activity: str) 
     return f"{SOURCE}:{ref_area}.{freq}.{measure}.{unit}.{activity}"
 
 
-def download(store: RawStore, ref_area: str, freq: str, measure: str, unit: str, activity: str) -> RawFile:
+def download(
+    store: RawStore, ref_area: str, freq: str, measure: str, unit: str, activity: str
+) -> RawFile:
     """All editions of one series, CSV without labels (labels contain quoted commas)."""
     k = key(ref_area, freq, measure, unit, activity)
     url = f"{BASE}/{DATAFLOW}/{k}"
@@ -49,7 +51,16 @@ def download(store: RawStore, ref_area: str, freq: str, measure: str, unit: str,
 
 def parse_csv(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path, dtype=str)
-    need = {"REF_AREA", "FREQ", "MEASURE", "UNIT_MEASURE", "ACTIVITY", "EDITION", "TIME_PERIOD", "OBS_VALUE"}
+    need = {
+        "REF_AREA",
+        "FREQ",
+        "MEASURE",
+        "UNIT_MEASURE",
+        "ACTIVITY",
+        "EDITION",
+        "TIME_PERIOD",
+        "OBS_VALUE",
+    }
     missing = need - set(df.columns)
     if missing:
         raise ValueError(f"{path}: missing columns {missing}")
@@ -82,7 +93,10 @@ def normalise(path: Path, rule: str, day_of_month: int) -> pd.DataFrame:
         return empty_table()
     first = df.iloc[0]
     sid = series_id(first.REF_AREA, first.FREQ, first.MEASURE, first.UNIT_MEASURE, first.ACTIVITY)
-    if df[["REF_AREA", "FREQ", "MEASURE", "UNIT_MEASURE", "ACTIVITY"]].drop_duplicates().shape[0] != 1:
+    if (
+        df[["REF_AREA", "FREQ", "MEASURE", "UNIT_MEASURE", "ACTIVITY"]].drop_duplicates().shape[0]
+        != 1
+    ):
         raise ValueError(f"{path}: more than one series in file")
 
     def snaps():
@@ -121,7 +135,9 @@ def edition_content_check(path: Path) -> pd.DataFrame:
             pm = pq * 3
         else:
             py, pm = int(newest[:4]), int(newest[5:7])
-        rows.append({"edition": ed, "newest_period": newest, "lag_months": (ey * 12 + em) - (py * 12 + pm)})
+        rows.append(
+            {"edition": ed, "newest_period": newest, "lag_months": (ey * 12 + em) - (py * 12 + pm)}
+        )
     return pd.DataFrame(rows)
 
 

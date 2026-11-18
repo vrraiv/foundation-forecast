@@ -58,7 +58,11 @@ def _period(label: str) -> str:
     return label
 
 
-def normalise(path: Path, dataset: str, filters: dict[str, str], download_date: dt.date) -> pd.DataFrame:
+def normalise(
+    path: Path, dataset: str, filters: dict[str, str], download_date: dt.date
+) -> pd.DataFrame:
     ser, updated = parse_jsonstat(path)
     sid = series_id(dataset, filters)
-    return snapshots_to_changelog([(download_date, f"download {download_date} (updated {updated})", ser)], sid, SOURCE)
+    return snapshots_to_changelog(
+        [(download_date, f"download {download_date} (updated {updated})", ser)], sid, SOURCE
+    )

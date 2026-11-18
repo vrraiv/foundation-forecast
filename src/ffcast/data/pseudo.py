@@ -55,6 +55,27 @@ def build(
         if vd > available_on:
             # the snapshot itself was taken before this pseudo date: do not pretend it was public
             vd = available_on
-        rows.append((pseudo_series_id(base_sid), str(p), float(v), vd, "R", "pseudo", f"lag {months_after}m from {base_sid}"))
-    out = pd.DataFrame(rows, columns=["series_id", "ref_period", "value", "vintage_date", "action", "source", "vintage_label"])
+        rows.append(
+            (
+                pseudo_series_id(base_sid),
+                str(p),
+                float(v),
+                vd,
+                "R",
+                "pseudo",
+                f"lag {months_after}m from {base_sid}",
+            )
+        )
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            "series_id",
+            "ref_period",
+            "value",
+            "vintage_date",
+            "action",
+            "source",
+            "vintage_label",
+        ],
+    )
     return validate_table(out)

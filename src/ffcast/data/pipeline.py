@@ -13,8 +13,8 @@ from pathlib import Path
 import pandas as pd
 
 from ..config import Config, load_config
-from .raw import DownloadError, RawStore
 from . import pseudo
+from .raw import DownloadError, RawStore
 from .sources import dbnomics, ecb_rtd, eurostat, financial, oecd, statcan, valet
 from .store import NORMALISED_ROOT, as_of, read_table, snapshots_to_changelog, write_table
 
@@ -34,7 +34,13 @@ class RunReport:
     problems: list[str] = field(default_factory=list)
 
     def add(self, sid: str, path: Path, sha: str, rows: int, source: str, raw: list[str]) -> None:
-        self.series[sid] = {"path": str(path), "sha256": sha, "rows": rows, "source": source, "raw_files": raw}
+        self.series[sid] = {
+            "path": str(path),
+            "sha256": sha,
+            "rows": rows,
+            "source": source,
+            "raw_files": raw,
+        }
 
     def problem(self, msg: str) -> None:
         self.problems.append(msg)
@@ -44,7 +50,9 @@ def safe_name(sid: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", sid)
 
 
-def run_data(cfg: Config | None = None, store: RawStore | None = None, out_root: Path = NORMALISED_ROOT) -> RunReport:
+def run_data(
+    cfg: Config | None = None, store: RawStore | None = None, out_root: Path = NORMALISED_ROOT
+) -> RunReport:
     cfg = cfg or load_config()
     store = store or RawStore()
     rep = RunReport(download_date=store.today)
@@ -182,7 +190,9 @@ def run_data(cfg: Config | None = None, store: RawStore | None = None, out_root:
         + "\n",
         encoding="utf-8",
     )
-    (out_root / "problems.txt").write_text("\n".join(rep.problems) + ("\n" if rep.problems else ""), encoding="utf-8")
+    (out_root / "problems.txt").write_text(
+        "\n".join(rep.problems) + ("\n" if rep.problems else ""), encoding="utf-8"
+    )
     return rep
 
 
@@ -202,7 +212,9 @@ def _oecd_series(store, rep, save, econ, freq, spec, rule, day):
     per_ed = df.groupby("EDITION")["REF_AREA"].nunique()
     multi = per_ed[per_ed > 1]
     if not multi.empty:
-        rep.problem(f"OECD {econ} {spec['measure']}: editions with more than one area code: {list(multi.index)[:5]}")
+        rep.problem(
+            f"OECD {econ} {spec['measure']}: editions with more than one area code: {list(multi.index)[:5]}"
+        )
         df = df[~df["EDITION"].isin(multi.index)]
     sid = f"oecd:{econ}.{freq}.{spec['measure']}.{spec['unit']}.{spec['activity']}"
 
@@ -238,16 +250,27 @@ def _rtd_series(store, rep, save, key):
 def _statcan_realtime(store, rep, save, table_id, tname):
     rf = statcan.try_download_full_table(store, table_id)
     if rf is None:
-        rep.problem(f"statcan {table_id}: WDS unreachable (Cloudflare challenge); using DBnomics mirror")
+        rep.problem(
+            f"statcan {table_id}: WDS unreachable (Cloudflare challenge); using DBnomics mirror"
+        )
         if table_id != "36100431":
             rep.problem(f"statcan {table_id}: no mirror available; vintages not loaded")
             return
         estim = {"gdp": "estim_24", "consumption": "estim_12"}[tname]
-        raw = dbnomics.download_realtime(store, table_id, ["estim_24", "estim_12"], "price_1", "sea_adj_1")
+        raw = dbnomics.download_realtime(
+            store, table_id, ["estim_24", "estim_12"], "price_1", "sea_adj_1"
+        )
         table = dbnomics.normalise(raw.path, table_id, estim, "price_1", "sea_adj_1")
-        save(dbnomics.series_id(table_id, estim, "price_1", "sea_adj_1"), table, dbnomics.SOURCE, [str(raw.path)])
+        save(
+            dbnomics.series_id(table_id, estim, "price_1", "sea_adj_1"),
+            table,
+            dbnomics.SOURCE,
+            [str(raw.path)],
+        )
         return
-    rep.problem(f"statcan {table_id}: downloaded but real-time parsing not yet wired (Phase 2 follow-up)")
+    rep.problem(
+        f"statcan {table_id}: downloaded but real-time parsing not yet wired (Phase 2 follow-up)"
+    )
 
 
 def _latest(store, rep, save, econ, tname, spec):
@@ -257,20 +280,36 @@ def _latest(store, rep, save, econ, tname, spec):
         geo = filters.pop("geo", EUROSTAT_GEO_DEFAULT.get(econ, "EA21"))
         rf = eurostat.download(store, spec["dataset"], filters, geo)
         table = eurostat.normalise(rf.path, spec["dataset"], {**filters, "geo": geo}, store.today)
-        save(eurostat.series_id(spec["dataset"], {**filters, "geo": geo}), table, eurostat.SOURCE, [str(rf.path)])
+        save(
+            eurostat.series_id(spec["dataset"], {**filters, "geo": geo}),
+            table,
+            eurostat.SOURCE,
+            [str(rf.path)],
+        )
     elif src == "valet":
         rf = valet.download(store, spec["series"])
-        save(valet.series_id(spec["series"]), valet.normalise(rf.path, spec["series"], store.today), valet.SOURCE, [str(rf.path)])
+        save(
+            valet.series_id(spec["series"]),
+            valet.normalise(rf.path, spec["series"], store.today),
+            valet.SOURCE,
+            [str(rf.path)],
+        )
     elif src == "statcan":
         rf = statcan.try_download_full_table(store, spec["table"])
         if rf is None:
-            rep.problem(f"{econ}/{tname}: statcan latest table {spec['table']} unreachable (Cloudflare challenge)")
+            rep.problem(
+                f"{econ}/{tname}: statcan latest table {spec['table']} unreachable (Cloudflare challenge)"
+            )
     elif src == "statcan_manual":
         rf = statcan.find_manual_table(store, spec["table"])
         if rf is None:
-            rep.problem(f"{econ}/{tname}: no owner-supplied StatCan file {spec['table']}-eng.zip under data/raw/statcan-manual")
+            rep.problem(
+                f"{econ}/{tname}: no owner-supplied StatCan file {spec['table']}-eng.zip under data/raw/statcan-manual"
+            )
         else:
-            table, sid = statcan.normalise_manual_latest(rf.path, spec["table"], dict(spec["member"]), rf.download_date)
+            table, sid = statcan.normalise_manual_latest(
+                rf.path, spec["table"], dict(spec["member"]), rf.download_date
+            )
             save(sid, table, statcan.SOURCE, [str(rf.path)])
     else:
         rep.problem(f"{econ}/{tname}: unknown latest source {src}")

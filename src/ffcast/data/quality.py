@@ -41,7 +41,9 @@ def vintage_gaps(dates: list[dt.date], max_gap_days: int) -> list[tuple[dt.date,
     return out
 
 
-def suspected_rebasings(table: pd.DataFrame, sid: str, share: float = 0.8) -> list[tuple[dt.date, float, int]]:
+def suspected_rebasings(
+    table: pd.DataFrame, sid: str, share: float = 0.8
+) -> list[tuple[dt.date, float, int]]:
     """Vintages where at least `share` of the periods common with the previous vintage changed
     by (nearly) the same ratio: a rebasing or a composition/definition break, not a data
     revision. Returns (vintage_date, median ratio, n periods changed)."""
@@ -118,7 +120,12 @@ def revision_cluster_editions(table: pd.DataFrame, sid: str, min_periods: int = 
     return counts[counts >= min_periods].rename("n_prior_year_periods_revised").reset_index()
 
 
-def build_report(table: pd.DataFrame, cfg, bulk_summary: pd.DataFrame | None = None, problems: list[str] | None = None) -> str:
+def build_report(
+    table: pd.DataFrame,
+    cfg,
+    bulk_summary: pd.DataFrame | None = None,
+    problems: list[str] | None = None,
+) -> str:
     # Per-series work operates on a filtered sub-table: as_of on the full table per vintage is
     # quadratic in the number of series.
     _full = table
@@ -126,7 +133,10 @@ def build_report(table: pd.DataFrame, cfg, bulk_summary: pd.DataFrame | None = N
     def _sub(sid):
         return _full[_full["series_id"] == sid]
 
-    origins = [dt.date.fromisoformat(cfg.origins.extension_first), dt.date.fromisoformat(cfg.origins.first)]
+    origins = [
+        dt.date.fromisoformat(cfg.origins.extension_first),
+        dt.date.fromisoformat(cfg.origins.first),
+    ]
     sids = sorted(table["series_id"].unique())
     lines = [
         "# Data quality report",
@@ -135,7 +145,9 @@ def build_report(table: pd.DataFrame, cfg, bulk_summary: pd.DataFrame | None = N
         "",
         "## 1. Series coverage",
         "",
-        "| series | source | vintages | first vintage | last vintage | periods (latest) | deletes | history at " + " / ".join(o.isoformat() for o in origins) + " |",
+        "| series | source | vintages | first vintage | last vintage | periods (latest) | deletes | history at "
+        + " / ".join(o.isoformat() for o in origins)
+        + " |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for sid in sids:
@@ -161,12 +173,27 @@ def build_report(table: pd.DataFrame, cfg, bulk_summary: pd.DataFrame | None = N
         comp = composition_labels(_sub(sid), sid)
         lines.append(f"### `{sid}`")
         lines.append("")
-        lines.append(f"- Vintage gaps longer than {max_gap} days: " + (", ".join(f"{a} to {b} ({d} d)" for a, b, d in gaps) if gaps else "none"))
-        lines.append("- Suspected rebasings or definitional breaks (vintage, median ratio, periods): " + (", ".join(f"{d} ({r}, {n})" for d, r, n in reb) if reb else "none detected"))
+        lines.append(
+            f"- Vintage gaps longer than {max_gap} days: "
+            + (", ".join(f"{a} to {b} ({d} d)" for a, b, d in gaps) if gaps else "none")
+        )
+        lines.append(
+            "- Suspected rebasings or definitional breaks (vintage, median ratio, periods): "
+            + (", ".join(f"{d} ({r}, {n})" for d, r, n in reb) if reb else "none detected")
+        )
         if comp:
-            lines.append("- Area-code composition splice (first vintage per code): " + ", ".join(f"{k} from {d}" for d, k in comp))
+            lines.append(
+                "- Area-code composition splice (first vintage per code): "
+                + ", ".join(f"{k} from {d}" for d, k in comp)
+            )
         lines.append("")
-    lines += ["", "## 3. Publication lags derived from first appearance (days after period end)", "", "| series | n periods | median | p10 | p90 | min | max |", "| --- | --- | --- | --- | --- | --- | --- |"]
+    lines += [
+        "",
+        "## 3. Publication lags derived from first appearance (days after period end)",
+        "",
+        "| series | n periods | median | p10 | p90 | min | max |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
     for sid in sids:
         s = table[table["series_id"] == sid]
         if s["source"].iloc[0] in ("eurostat", "valet"):
@@ -178,9 +205,17 @@ def build_report(table: pd.DataFrame, cfg, bulk_summary: pd.DataFrame | None = N
         lag = lag[[p for p in lag.index if pd.Timestamp(fa[p]).date() > first_v]]
         if lag.empty:
             continue
-        lines.append(f"| `{sid}` | {len(lag)} | {lag.median():.0f} | {lag.quantile(0.1):.0f} | {lag.quantile(0.9):.0f} | {lag.min():.0f} | {lag.max():.0f} |")
-    lines += ["", "## 4. OECD edition timing evidence (rule in use: `conservative`; `same_month_eve` is a variant)", ""]
-    lines.append("Edition-minus-newest-period lag in months, per OECD series. A lag of 1 means edition M already contains the observation for month M-1. Editions whose newest period is more than 12 months old are truncated or stale editions and are listed separately.")
+        lines.append(
+            f"| `{sid}` | {len(lag)} | {lag.median():.0f} | {lag.quantile(0.1):.0f} | {lag.quantile(0.9):.0f} | {lag.min():.0f} | {lag.max():.0f} |"
+        )
+    lines += [
+        "",
+        "## 4. OECD edition timing evidence (rule in use: `conservative`; `same_month_eve` is a variant)",
+        "",
+    ]
+    lines.append(
+        "Edition-minus-newest-period lag in months, per OECD series. A lag of 1 means edition M already contains the observation for month M-1. Editions whose newest period is more than 12 months old are truncated or stale editions and are listed separately."
+    )
     lines.append("")
     from .store import NORMALISED_ROOT
 
@@ -194,17 +229,38 @@ def build_report(table: pd.DataFrame, cfg, bulk_summary: pd.DataFrame | None = N
         lag1 = el[el["lag_months"] < 2]
         lines.append(
             f"- `{sid}`: lag min {normal['lag_months'].min()}, median {normal['lag_months'].median():.0f}, max {normal['lag_months'].max()} over {len(normal)} regular editions; "
-            f"editions containing M-1: {len(lag1)}" + (f" ({', '.join(lag1['edition'].tolist()[:12])}{'...' if len(lag1) > 12 else ''})" if 0 < len(lag1) <= 400 else "")
-            + f"; stale or truncated editions: {len(stale)}" + (f" ({', '.join(stale['edition'].tolist()[:8])}{'...' if len(stale) > 8 else ''})" if len(stale) else "")
+            f"editions containing M-1: {len(lag1)}"
+            + (
+                f" ({', '.join(lag1['edition'].tolist()[:12])}{'...' if len(lag1) > 12 else ''})"
+                if 0 < len(lag1) <= 400
+                else ""
+            )
+            + f"; stale or truncated editions: {len(stale)}"
+            + (
+                f" ({', '.join(stale['edition'].tolist()[:8])}{'...' if len(stale) > 8 else ''})"
+                if len(stale)
+                else ""
+            )
         )
     for sid in [s for s in sids if "UNEMP" in s and s.startswith("oecd:CA")]:
         rc = revision_cluster_editions(_sub(sid), sid)
         lines.append("")
-        lines.append(f"- `{sid}` editions revising at least 6 prior-year months (annual LFS revision reaches the edition): " + ", ".join(f"{r.edition} ({r.n_prior_year_periods_revised})" for r in rc.itertuples()))
+        lines.append(
+            f"- `{sid}` editions revising at least 6 prior-year months (annual LFS revision reaches the edition): "
+            + ", ".join(f"{r.edition} ({r.n_prior_year_periods_revised})" for r in rc.itertuples())
+        )
     if bulk_summary is not None and not bulk_summary.empty:
-        lines += ["", "## 5. RTD change-log rebuild versus ECB bulk snapshot files (2001-2014)", "", "| key | files compared | files identical | periods compared | mismatching periods |", "| --- | --- | --- | --- | --- |"]
+        lines += [
+            "",
+            "## 5. RTD change-log rebuild versus ECB bulk snapshot files (2001-2014)",
+            "",
+            "| key | files compared | files identical | periods compared | mismatching periods |",
+            "| --- | --- | --- | --- | --- |",
+        ]
         for key, g in bulk_summary.groupby("key"):
-            lines.append(f"| `{key}` | {len(g)} | {int(g['ok'].sum())} | {int(g['n_match'].sum() + g['n_mismatch'].sum())} | {int(g['n_mismatch'].sum())} |")
+            lines.append(
+                f"| `{key}` | {len(g)} | {int(g['ok'].sum())} | {int(g['n_match'].sum() + g['n_mismatch'].sum())} | {int(g['n_mismatch'].sum())} |"
+            )
     if problems:
         lines += ["", "## 6. Problems recorded by the pipeline", ""] + [f"- {p}" for p in problems]
     notes = Path(__file__).resolve().parents[3] / "docs" / "data_quality_notes.md"

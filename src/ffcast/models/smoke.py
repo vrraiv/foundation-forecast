@@ -35,6 +35,8 @@ class SmokeRow:
     note: str
     runtime_s: float
     median_h1: float | None
+    step1_period: str | None = None
+    n_vars: int | None = None
 
 
 def sane(fc: QuantileForecast, hist: pd.Series) -> tuple[bool, str]:
@@ -75,6 +77,7 @@ def run_benchmarks(
             b["draws"],
             0,
             b["max_vars"],
+            b.get("min_balanced", {}).get(panel.freq, 72),
         )
         out["bvar"] = (bv.forecast(mv, horizon, qs), time.perf_counter() - t0)
     d = bcfg["dfm"]
@@ -149,6 +152,15 @@ def run_smoke(
                     continue
                 ok, note = sane(fc, p.target_tr)
                 fcs[name] = fc
+                expected = p.target_periods(horizon)[0]
+                s1 = fc.meta.get("step1_period")
+                if (
+                    s1 is not None
+                    and str(s1).replace("Q", "-Q") != expected
+                    and str(s1) != expected
+                ):
+                    ok, note = False, f"step 1 refers to {s1}, expected {expected}"
+                nv = len(fc.meta.get("vars", [])) or fc.meta.get("n_monthly")
                 rows.append(
                     SmokeRow(
                         econ,
@@ -160,6 +172,8 @@ def run_smoke(
                         note,
                         round(rt, 3),
                         float(fc.median()[0]),
+                        expected,
+                        nv,
                     )
                 )
             combo = EqualWeight(
@@ -180,7 +194,12 @@ def run_smoke(
                         float(combo.median()[0]),
                     )
                 )
-    # foundation models: one worker call per model with all tasks
+    # foundation models: one worker call per model with all tasks. The vintage table is no
+    # longer needed and is released so that worker processes have the memory.
+    import gc
+
+    del table
+    gc.collect()
     fms = cfg.foundation_models()
     for mname, fm in fms.items():
         if models and mname not in models:
@@ -189,18 +208,25 @@ def run_smoke(
         for (econ, tname), p in panels.items():
             horizon = max(cfg.horizons[p.freq])
             for variant in fm.variants:
+                # Multivariate foundation-model variants receive a balanced panel ending at the
+                # target's last observation, so step 1 is the same period for every model.
                 hist = (
                     p.univariate()
                     if variant == "univariate"
-                    else p.multivariate(cfg.models["benchmarks"]["bvar"]["max_vars"])
-                    .ffill()
-                    .dropna()
+                    else p.multivariate(cfg.models["benchmarks"]["bvar"]["max_vars"], balanced=True)
                 )
                 if variant == "multivariate" and hist.shape[1] < 2:
                     continue
                 tid = f"{econ}.{tname}.{variant}"
                 tasks.append(make_task(tid, hist, p.freq, horizon, qs))
-                meta[tid] = (econ, tname, variant, horizon, p)
+                meta[tid] = (
+                    econ,
+                    tname,
+                    variant,
+                    horizon,
+                    p,
+                    None if variant == "univariate" else hist.shape[1],
+                )
         if not tasks:
             continue
         try:
@@ -213,7 +239,7 @@ def run_smoke(
             )
             continue
         fcs = to_forecasts(resp, tasks)
-        for tid, (econ, tname, variant, horizon, p) in meta.items():
+        for tid, (econ, tname, variant, horizon, p, _nv) in meta.items():
             if tid in fcs:
                 ok, note = sane(fcs[tid], p.target_tr)
                 rows.append(
@@ -227,6 +253,8 @@ def run_smoke(
                         note,
                         fcs[tid].meta["runtime_s"],
                         float(fcs[tid].median()[0]),
+                        p.target_periods(horizon)[0],
+                        None if variant == "univariate" else meta[tid][5],
                     )
                 )
             else:
@@ -257,6 +285,23 @@ def run_smoke(
             )
         )
     df = pd.DataFrame([asdict(r) for r in rows])
+    realised = {
+        f"{e}.{t}": {
+            "target_sid": p.target_sid,
+            "source_role": p.source_role,
+            "target_last": str(p.target_tr.index[-1]),
+            "multivariate_vars": list(
+                p.multivariate(cfg.models["benchmarks"]["bvar"]["max_vars"]).columns
+            ),
+            "dropped": p.dropped,
+        }
+        for (e, t), p in panels.items()
+    }
+    if out_path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.with_name(out_path.stem + "_panels.json").write_text(
+            json.dumps(realised, indent=1), encoding="utf-8"
+        )
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(out_path, index=False)

@@ -62,7 +62,10 @@ targets:
       freq: M
       # Unrevised (verified across OECD editions). Pseudo-vintages: month m is assumed public
       # at the origin of month m+1 (StatCan releases CPI on the 14th-22nd of m+1).
-      vintages: {source: pseudo, base: "valet:V41690973", months_after_period: 1, fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
+      # January CPI was released on 26 Feb 2015 and 27 Feb 2019 (after the 25th), so reference
+      # month January becomes visible one origin later (late_months). Other months: released on
+      # the 14th-24th in every year checked (2015-2026).
+      vintages: {source: pseudo, base: "valet:V41690973", months_after_period: 1, late_months: {1: 2}, fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
       latest: {source: valet, series: V41690973}
       transform: log_diff
       exclude_from_q1: true
@@ -143,50 +146,55 @@ targets:
 # commodity index for Canada). Oil is not available from a public keyless source for the euro
 # area (RTD Brent key stale since 2024-11) and is omitted for both economies.
 conditioning:
+  # Each entry fixes its own transform (log_diff | diff) and, for daily series, the monthly
+  # aggregation (mean | ffill_eom = forward-fill to business days, take the end-of-month value,
+  # for date-of-change series). Nothing is inferred from names.
   CA:
-    - {source: oecd, freq: M, measure: PRVM, unit: IX, activity: BTE, name: industrial production}
-    - {source: oecd, freq: M, measure: EMP, unit: PS, activity: _T, name: employment}
-    - {source: oecd, freq: M, measure: H_EARN, unit: IX, activity: C, name: hourly earnings in manufacturing}
-    - {source: oecd, freq: M, measure: MABM, unit: XDC, activity: _Z, name: broad money}
-    - {source: oecd, freq: M, measure: EX, unit: XDC, activity: _T, name: exports value}
-    - {source: oecd, freq: M, measure: IM, unit: XDC, activity: _T, name: imports value}
-    - {source: oecd, freq: Q, measure: B1GQ_D, unit: IX, activity: _T, name: GDP deflator}
-    - {source: oecd, freq: Q, measure: P51G_Q, unit: XDC, activity: _T, name: gross fixed capital formation}
-    - {source: oecd, freq: Q, measure: P6_Q, unit: XDC, activity: _T, name: exports volume}
-    - {source: oecd, freq: Q, measure: P7_Q, unit: XDC, activity: _T, name: imports volume}
-    - {source: valet_daily, series: B114039, name: target for the overnight rate}
-    - {source: valet_daily, series: BD.CDN.10YR.DQ.YLD, name: 10-year benchmark bond yield}
-    - {source: valet_daily, series: FXUSDCAD, name: USD/CAD}
-    - {source: valet_daily, series: M.BCPI, name: Bank of Canada commodity price index (monthly)}
+    - {source: oecd, freq: M, measure: PRVM, unit: IX, activity: BTE, transform: log_diff, name: industrial production}
+    - {source: oecd, freq: M, measure: EMP, unit: PS, activity: _T, transform: log_diff, name: employment}
+    - {source: oecd, freq: M, measure: H_EARN, unit: IX, activity: C, transform: log_diff, name: hourly earnings in manufacturing}
+    - {source: oecd, freq: M, measure: MABM, unit: XDC, activity: _Z, transform: log_diff, name: broad money}
+    - {source: oecd, freq: M, measure: EX, unit: XDC, activity: _T, transform: log_diff, name: exports value}
+    - {source: oecd, freq: M, measure: IM, unit: XDC, activity: _T, transform: log_diff, name: imports value}
+    - {source: oecd, freq: Q, measure: B1GQ_D, unit: IX, activity: _T, transform: log_diff, name: GDP deflator}
+    - {source: oecd, freq: Q, measure: P51G_Q, unit: XDC, activity: _T, transform: log_diff, name: gross fixed capital formation}
+    - {source: oecd, freq: Q, measure: P6_Q, unit: XDC, activity: _T, transform: log_diff, name: exports volume}
+    - {source: oecd, freq: Q, measure: P7_Q, unit: XDC, activity: _T, transform: log_diff, name: imports volume}
+    - {source: valet_daily, series: B114039, transform: diff, agg: ffill_eom, name: target for the overnight rate}
+    - {source: valet_daily, series: BD.CDN.10YR.DQ.YLD, transform: diff, agg: mean, name: 10-year benchmark bond yield}
+    - {source: valet_daily, series: FXUSDCAD, transform: log_diff, agg: mean, name: USD/CAD}
+    - {source: valet_monthly, series: M.BCPI, transform: log_diff, name: Bank of Canada commodity price index}
   EA:
-    - {source: ecb_rtd, key: M.S0.N.P_C_SERV.X, name: HICP services}
-    - {source: ecb_rtd, key: M.S0.N.P_C_IGXE.X, name: HICP non-energy industrial goods}
-    - {source: ecb_rtd, key: M.S0.N.P_C_NRGY.X, name: HICP energy}
-    - {source: ecb_rtd, key: M.S0.N.P_C_FOOD.X, name: HICP food}
-    - {source: ecb_rtd, key: M.S0.N.M_M3_V_NC.E, name: M3}
-    - {source: ecb_rtd, key: M.S0.N.M_M1_V_NC.E, name: M1}
-    - {source: ecb_rtd, key: M.S0.N.M_LOAN_U_NG.E, name: loans to private sector}
-    - {source: ecb_rtd, key: M.S0.S.Y_ESIND.F, name: economic sentiment indicator}
-    - {source: ecb_rtd, key: M.S0.S.Y_CSCCI.F, name: consumer confidence}
-    - {source: ecb_rtd, key: M.S0.S.Y_ISICI.F, name: industrial confidence}
-    - {source: ecb_rtd, key: M.S0.S.Y_SSSCI.F, name: services confidence}
-    - {source: ecb_rtd, key: M.S0.S.Y_RSRCI.F, name: retail confidence}
-    - {source: ecb_rtd, key: M.S0.N.C_EUR3M.E, name: 3-month Euribor}
-    - {source: ecb_rtd, key: M.S0.N.E_EN00_NGR.X, name: nominal effective exchange rate}
-    - {source: ecb_rtd, key: M.S0.S.T_XTTT.E, name: extra-EA exports value}
-    - {source: ecb_rtd, key: M.S0.S.T_MTTT.E, name: extra-EA imports value}
-    - {source: ecb_rtd, key: M.S0.N.C_DJESB.X, name: Euro Stoxx broad index}
-    - {source: ecb_rtd, key: M.S0.S.L_FMU25.F, name: youth unemployment rate}
-    - {source: ecb_rtd, key: Q.S0.S.G_GFCF_TO_C.E, name: gross fixed capital formation}
-    - {source: ecb_rtd, key: Q.S0.S.G_XGS_TO_C.E, name: exports volume}
-    - {source: ecb_rtd, key: Q.S0.S.G_MGS_TO_C.E, name: imports volume}
-    - {source: ecb_rtd, key: Q.S0.S.L_TEMP_TO.M, name: total employment}
-    - {source: ecb_rtd, key: Q.S0.S.G_GDPM_TO_D.X, name: GDP deflator}
-    - {source: ecb_rtd, key: Q.S0.S.Y_ISLCU.F, name: capacity utilisation}
-    - {source: ecb_sdw, flow: FM, key: B.U2.EUR.4F.KR.DFR.LEV, name: deposit facility rate (date of change)}
-    - {source: ecb_sdw, flow: FM, key: B.U2.EUR.4F.KR.MRR_FR.LEV, name: main refinancing rate (date of change)}
-    - {source: ecb_sdw, flow: EXR, key: D.USD.EUR.SP00.A, name: USD/EUR}
-    - {source: ecb_sdw, flow: YC, key: B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y, name: AAA government yield curve 10-year}
+    # Monthly order fixes which series enter when the 12-variable cap binds: HICP components,
+    # ESI, consumer confidence, M3, loans, Euribor, NEER, Euro Stoxx, then the remainder.
+    - {source: ecb_rtd, key: M.S0.N.P_C_SERV.X, transform: log_diff, name: HICP services}
+    - {source: ecb_rtd, key: M.S0.N.P_C_IGXE.X, transform: log_diff, name: HICP non-energy industrial goods}
+    - {source: ecb_rtd, key: M.S0.N.P_C_NRGY.X, transform: log_diff, name: HICP energy}
+    - {source: ecb_rtd, key: M.S0.N.P_C_FOOD.X, transform: log_diff, name: HICP food}
+    - {source: ecb_rtd, key: M.S0.S.Y_ESIND.F, transform: diff, name: economic sentiment indicator}
+    - {source: ecb_rtd, key: M.S0.S.Y_CSCCI.F, transform: diff, name: consumer confidence}
+    - {source: ecb_rtd, key: M.S0.N.M_M3_V_NC.E, transform: log_diff, name: M3}
+    - {source: ecb_rtd, key: M.S0.N.M_LOAN_U_NG.E, transform: log_diff, name: loans to private sector}
+    - {source: ecb_rtd, key: M.S0.N.C_EUR3M.E, transform: diff, name: 3-month Euribor}
+    - {source: ecb_rtd, key: M.S0.N.E_EN00_NGR.X, transform: log_diff, name: nominal effective exchange rate}
+    - {source: ecb_rtd, key: M.S0.N.C_DJESB.X, transform: log_diff, name: Euro Stoxx broad index}
+    - {source: ecb_rtd, key: M.S0.N.M_M1_V_NC.E, transform: log_diff, name: M1}
+    - {source: ecb_rtd, key: M.S0.S.Y_ISICI.F, transform: diff, name: industrial confidence}
+    - {source: ecb_rtd, key: M.S0.S.Y_SSSCI.F, transform: diff, name: services confidence}
+    - {source: ecb_rtd, key: M.S0.S.Y_RSRCI.F, transform: diff, name: retail confidence}
+    - {source: ecb_rtd, key: M.S0.S.T_XTTT.E, transform: log_diff, name: extra-EA exports value}
+    - {source: ecb_rtd, key: M.S0.S.T_MTTT.E, transform: log_diff, name: extra-EA imports value}
+    - {source: ecb_rtd, key: M.S0.S.L_FMU25.F, transform: diff, name: youth unemployment rate}
+    - {source: ecb_rtd, key: Q.S0.S.G_GFCF_TO_C.E, transform: log_diff, name: gross fixed capital formation}
+    - {source: ecb_rtd, key: Q.S0.S.G_XGS_TO_C.E, transform: log_diff, name: exports volume}
+    - {source: ecb_rtd, key: Q.S0.S.G_MGS_TO_C.E, transform: log_diff, name: imports volume}
+    - {source: ecb_rtd, key: Q.S0.S.L_TEMP_TO.M, transform: log_diff, name: total employment}
+    - {source: ecb_rtd, key: Q.S0.S.G_GDPM_TO_D.X, transform: log_diff, name: GDP deflator}
+    - {source: ecb_rtd, key: Q.S0.S.Y_ISLCU.F, transform: diff, name: capacity utilisation}
+    - {source: ecb_sdw, flow: FM, key: B.U2.EUR.4F.KR.DFR.LEV, transform: diff, agg: ffill_eom, name: deposit facility rate (date of change)}
+    - {source: ecb_sdw, flow: FM, key: B.U2.EUR.4F.KR.MRR_FR.LEV, transform: diff, agg: ffill_eom, name: main refinancing rate (date of change)}
+    - {source: ecb_sdw, flow: EXR, key: D.USD.EUR.SP00.A, transform: log_diff, agg: mean, name: USD/EUR}
+    - {source: ecb_sdw, flow: YC, key: B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y, transform: diff, agg: mean, name: AAA government yield curve 10-year}
 
 models:
   foundation:
@@ -235,10 +243,13 @@ models:
     ar: {kind: ar_direct, max_lag: {M: 12, Q: 4}, selection: bic}
     # Minnesota BVAR, hyperparameters (overall tightness lambda, lag decay, sum-of-coefficients
     # and dummy-initial-observation priors) chosen by maximising the marginal likelihood over
-    # a fixed grid at each origin (Giannone, Lenza, Primiceri 2015). Ragged edge: variables
-    # with a shorter last observation are filled by their own conditional forecast within
-    # the BVAR before forecasting the target (Kalman-filter conditioning), never truncated.
-    bvar: {kind: bvar_minnesota, hyper: marginal_likelihood, lags: {M: 6, Q: 2}, lambda_grid: [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0], decay: 1.0, soc_grid: [0.5, 1.0, 2.0], dio_grid: [0.5, 1.0, 2.0], max_vars: 12, quantiles_from: posterior_predictive, draws: 500}
+    # a fixed grid at each origin (Giannone, Lenza, Primiceri 2015). Ragged edge: periods after
+    # the target's last observation where other variables are observed are handled by
+    # shock-conditioned simulation (observed variables fixed, the target's shock drawn from its
+    # conditional distribution), so step 1 always refers to the first unobserved target period.
+    # Estimation sample: the balanced part of the panel, at least min_balanced observations;
+    # the Minnesota prior regularises the system, no observations-per-parameter rule.
+    bvar: {kind: bvar_minnesota, hyper: marginal_likelihood, lags: {M: 6, Q: 2}, lambda_grid: [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0], decay: 1.0, soc_grid: [0.5, 1.0, 2.0], dio_grid: [0.5, 1.0, 2.0], max_vars: 12, min_balanced: {M: 72, Q: 32}, quantiles_from: posterior_predictive, draws: 500}
     # Mixed-frequency dynamic factor model (statsmodels DynamicFactorMQ), monthly block plus
     # quarterly variables, factors and lag order fixed in advance, EM estimation on the
     # ragged-edge panel; quantiles from the Gaussian forecast distribution.

@@ -6,8 +6,9 @@ SHA-256 of every file; the whole-snapshot digest is written into every forecast'
 Inference settings are frozen in `configs/default.yaml` (`models.settings`) and described in
 `workers/_protocol.md`. All models run zero-shot on CPU, one worker process per model
 environment (`envs/<env>/uv.lock`), seed 0, 4 threads, deterministic algorithms where
-PyTorch supports them; a rerun of the same request produces byte-identical output (checked for
-every model on a synthetic task on 2026-11-18).
+PyTorch supports them; a rerun of the same request produced byte-identical output for Chronos-2,
+TiRex, TiRex-2 and Moirai 2.0 on a synthetic task on 2026-11-18 (TimesFM 2.5 not yet checked
+through the orchestrator, see STATUS.md).
 
 | Model | Hugging Face ID | Revision (sha) | Weight file date | Release date (HF repo created) | Licence | Package (locked) | Variants |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -49,8 +50,12 @@ boundary is ambiguous between 2026-07-02 and 2026-10-06 and both are recorded.
 - TiRex-2 and TiRex run with `torch.compile` disabled (no MSVC on Windows).
 - Multivariate variants receive the target plus the conditioning variables selected by the
   rule in `ffcast.models.panel.Panel.multivariate` (coverage at least 80% of the last 240
-  months or 80 quarters, not more than 12 periods stale, at most 12 variables), forward-filled
-  at the ragged edge, and return the target's quantiles.
+  months or 80 quarters, not more than 12 periods stale, at most 12 variables), as a balanced
+  panel ending at the target's last observation (conditioning values published after it are
+  not used by the foundation models; only the BVAR and the factor model exploit the ragged
+  edge), and return the target's quantiles. Transforms and aggregations per conditioning
+  series are fixed in `configs/default.yaml`; the realised set per target and origin is
+  written next to each smoke/backtest output.
 - Workers refuse to start when the system has less than 4 GB of commit charge available
   (`min_free_commit_mb`), because weight loading then fails unpredictably on Windows.
 
@@ -61,9 +66,12 @@ boundary is ambiguous between 2026-07-02 and 2026-10-06 and both are recorded.
   or 4 (quarterly); Gaussian quantiles from the residual standard error per horizon.
 - **bvar**: Minnesota normal-inverse-Wishart prior with sum-of-coefficients and dummy-initial-
   observation priors via dummy observations; (lambda, mu, delta) chosen on a fixed grid by
-  marginal likelihood at each origin; lags 6 (monthly) or 2 (quarterly); up to 12 variables;
-  ragged edge completed by the VAR's own conditional forecast; posterior-predictive quantiles
-  from 500 seeded draws. Limiting cases tested (tight prior shrinks lags to zero, loose prior
+  marginal likelihood at each origin; lags 6 (monthly) or 2 (quarterly); up to 12 variables
+  (estimation on the balanced part of the panel, at least 72 months or 32 quarters, dropping the
+  gappiest conditioning columns only if that minimum is not met); ragged-edge periods simulated
+  conditionally on the variables already observed (shock conditioning); posterior-predictive
+  quantiles from 500 seeded draws; step 1 always refers to the first period after the target's
+  last observation. Limiting cases tested (tight prior shrinks lags to zero, loose prior
   reproduces OLS).
 - **dfm**: statsmodels `DynamicFactorMQ`, 2 factors, factor order 2, idiosyncratic AR(1), EM with
   at most 100 iterations, up to 12 monthly variables plus the quarterly block; Gaussian

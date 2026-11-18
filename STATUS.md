@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 3 done except the TimesFM smoke run; Phase 4 starting). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 3 under review fixes; Phase 4 not started). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -10,8 +10,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
-| 3 Models and benchmarks | **Done, one gap.** Smoke test at origin 2024-06-25: all benchmarks and Chronos-2, TiRex, TiRex-2, Moirai 2.0 pass every sane-magnitude check on 11 targets; runtimes in `docs/model_cards.md`. TimesFM 2.5 could not be smoke-tested through the orchestrator because the machine has too little free commit charge (its worker refuses to start below about 2.4 GB free); it was verified on a synthetic task from a bare shell. Rerun `ffcast smoke --skip-bench --models timesfm25` once memory is freed. |
-| 4 Backtest and scoring | In progress |
+| 3 Models and benchmarks | **Not done.** Four of five models and all benchmarks pass the smoke test at origin 2024-06-25 (see `docs/model_cards.md`); TimesFM 2.5 has not run through the orchestrator (machine memory, below); Canadian core CPI has no data. A review found and fixed: interleaved month labels in Canadian panels (commodity index), name-guessed transforms (Euribor dropped), sparse policy rates never passing coverage, and step-1 misalignment between models when conditioning data extend past the target (BVAR now simulates the ragged edge conditionally; DFM predicts from the target's last observation; foundation models get a balanced panel). Smoke test rerun after the fixes: all 55 benchmark checks pass and every model's step 1 refers to the same target period per target; the realised conditioning set per target is written to `data/smoke/*_panels.json`. Foundation-model rerun depends on free machine memory (below). |
+| 4 Backtest and scoring | Not started |
 | 5 Live registry | Not started |
 
 ## Decisions taken by the owner so far (2026-11-17)

@@ -8,9 +8,10 @@ Implementation notes
   transformed (stationary) data used here, which the plan's transforms guarantee.
 - Marginal likelihood is the closed-form NIW expression; the grid search is over
   (lambda, mu, delta) from the config, so no hyperparameter touches outturns.
-- Ragged edge: variables whose last observation is earlier than the target's are completed
-  with their posterior-mean conditional forecast (iterating the VAR forward with the known
-  values of the other variables held fixed), so timely observations are used, not discarded.
+- Ragged edge: periods after the target's last observation in which other variables are
+  already observed are simulated conditionally (observed variables fixed, the target's shock
+  drawn from its conditional Gaussian distribution), so timely observations are used and step
+  1 always refers to the first unobserved target period.
 - Forecast quantiles: posterior predictive by simulation (parameter draws from the NIW
   posterior plus Gaussian shocks), seeded.
 """
@@ -153,7 +154,9 @@ class BVARMinnesota:
         draws: int = 500,
         seed: int = 0,
         max_vars: int = 12,
+        min_balanced: int = 72,
     ) -> None:
+        self.min_balanced = min_balanced
         self.p = lags
         self.lambda_grid = list(lambda_grid)
         self.soc_grid = list(soc_grid)
@@ -163,43 +166,34 @@ class BVARMinnesota:
         self.seed = seed
         self.max_vars = max_vars
 
-    def _complete_ragged_edge(self, df: pd.DataFrame, B: np.ndarray) -> np.ndarray:
-        """Fill trailing NaNs column by column with the VAR's own mean forecast conditional on the
-        observed values of the other columns at the same date (iterated forward)."""
-        Y = df.to_numpy(dtype=float).copy()
-        p = self.p
-        # interior gaps inside the first p rows cannot be forecast; carry values forward/back
-        head = pd.DataFrame(Y[:p]).ffill().bfill().to_numpy()
-        Y[:p] = head
-        for t in range(p, Y.shape[0]):
-            if not np.isnan(Y[t]).any():
-                continue
-            x = np.concatenate([[1.0], *[Y[t - j] for j in range(1, p + 1)]])
-            pred = x @ B
-            miss = np.isnan(Y[t])
-            Y[t, miss] = pred[miss]
-        return Y
-
     def forecast(self, history: pd.DataFrame, horizon: int, quantiles) -> QuantileForecast:
+        """`history`: target in column 0, conditioning variables after it, regular period index,
+        ragged edge allowed (NaN at the end of any column, including the target when other
+        variables are more timely). Steps 1..horizon refer to the periods after the target's
+        last observation."""
         df = history.astype(float).copy()
         if df.shape[1] > self.max_vars:
             df = df.iloc[:, : self.max_vars]
-        # training sample: rows with all variables observed (the balanced part); the ragged edge
-        # is completed afterwards with the estimated model
-        full = df.dropna()
-        min_rows = 10 * (1 + df.shape[1] * self.p)
-        # If the balanced sample is too short, drop the column with the most gaps (never the
-        # target) until it is long enough. Deterministic, depends only on the origin's vintage.
-        while len(full) < min_rows and df.shape[1] > 1:
-            gaps = df.iloc[:, 1:].isna().sum()
+        tcol = df.columns[0]
+        last_t = df.index[df[tcol].notna()][-1]
+        t_pos = int(df.index.get_loc(last_t))
+        gap = len(df) - 1 - t_pos  # rows after the target's last observation
+        # estimation sample: balanced rows up to the target's last observation; if too short,
+        # drop the gappiest conditioning column (deterministic) until it is long enough
+        est = df.iloc[: t_pos + 1]
+        full = est.dropna()
+        while len(full) < self.min_balanced and est.shape[1] > 1:
+            gaps = est.iloc[:, 1:].isna().sum()
+            est = est.drop(columns=[gaps.idxmax()])
             df = df.drop(columns=[gaps.idxmax()])
-            full = df.dropna()
-            min_rows = 10 * (1 + df.shape[1] * self.p)
+            full = est.dropna()
         if len(full) < 3 * (1 + self.p):
             raise ValueError("not enough balanced observations for the BVAR")
-        first_full = full.index[0]
-        df = df.loc[first_full:]
-        Y = full.to_numpy()
+        est = est.loc[full.index[0] :]
+        df = df.loc[full.index[0] :]
+        # interior gaps inside the estimation sample are carried forward (recorded)
+        n_interior_gaps = int(est.isna().sum().sum())
+        Y = est.ffill().bfill().to_numpy()
         X, Yt = _lags(Y, self.p)
         best = None
         for lam, mu, delta in itertools.product(self.lambda_grid, self.soc_grid, self.dio_grid):
@@ -209,24 +203,30 @@ class BVARMinnesota:
                 best = (lml, lam, mu, delta, Xd, Yd)
         lml, lam, mu, delta, Xd, Yd = best
         B, S, XtX_inv, nu = _niw_posterior(X, Yt, Xd, Yd)
-        Yfull = self._complete_ragged_edge(df, B)
-        n = Yfull.shape[1]
+        n = Y.shape[1]
+        tail = df.iloc[
+            t_pos + 1 :
+        ].to_numpy()  # ragged-edge rows (target NaN, others maybe observed)
         rng = np.random.default_rng(self.seed)
         sims = np.empty((self.draws, horizon))
+        L_xtx = np.linalg.cholesky(XtX_inv + 1e-12 * np.eye(XtX_inv.shape[0]))
         for d in range(self.draws):
             Sigma = _inv_wishart(rng, S, max(nu, n + 2))
-            Bd = (
-                B
-                + np.linalg.cholesky(XtX_inv + 1e-12 * np.eye(XtX_inv.shape[0]))
-                @ rng.standard_normal(B.shape)
-                @ np.linalg.cholesky(Sigma).T
-            )
-            hist = Yfull.copy()
-            path = []
+            Bd = B + L_xtx @ rng.standard_normal(B.shape) @ np.linalg.cholesky(Sigma).T
             L = np.linalg.cholesky(Sigma)
-            for _h in range(horizon):
+            hist = Y.copy()
+            path = []
+            # steps 1..horizon are the periods after the target's last observation; the first
+            # `gap` of them have other variables observed (conditional draws)
+            for step in range(horizon):
                 x = np.concatenate([[1.0], *[hist[-j] for j in range(1, self.p + 1)]])
-                ynew = x @ Bd + L @ rng.standard_normal(n)
+                mean = x @ Bd
+                if step < gap:
+                    obs = tail[step]
+                    known = ~np.isnan(obs)
+                    ynew = _conditional_draw(mean, Sigma, obs, known, rng)
+                else:
+                    ynew = mean + L @ rng.standard_normal(n)
                 hist = np.vstack([hist, ynew])
                 path.append(ynew[0])
             sims[d] = path
@@ -245,8 +245,32 @@ class BVARMinnesota:
                 "log_ml": lml,
                 "n": len(full),
                 "vars": list(df.columns),
+                "ragged_gap": gap,
+                "interior_gaps_filled": n_interior_gaps,
+                "step1_period": str(df.index[t_pos + 1]) if gap >= 1 else None,
             },
         )
+
+
+def _conditional_draw(mean, Sigma, obs, known, rng):
+    """Draw the unknown components of a Gaussian vector given the observed ones (shock
+    conditioning): y_u | y_k ~ N(mu_u + S_uk S_kk^-1 (y_k - mu_k), S_uu - S_uk S_kk^-1 S_ku)."""
+    y = np.array(mean, dtype=float)
+    unk = ~known
+    if known.any():
+        y[known] = obs[known]
+        if unk.any():
+            S_kk = Sigma[np.ix_(known, known)]
+            S_uk = Sigma[np.ix_(unk, known)]
+            S_uu = Sigma[np.ix_(unk, unk)]
+            A = S_uk @ np.linalg.pinv(S_kk)
+            cm = mean[unk] + A @ (obs[known] - mean[known])
+            cv = S_uu - A @ S_uk.T
+            cv = (cv + cv.T) / 2 + 1e-12 * np.eye(cv.shape[0])
+            y[unk] = cm + np.linalg.cholesky(cv) @ rng.standard_normal(unk.sum())
+    else:
+        y = mean + np.linalg.cholesky(Sigma) @ rng.standard_normal(len(mean))
+    return y
 
 
 def _inv_wishart(rng: np.random.Generator, S: np.ndarray, nu: int) -> np.ndarray:

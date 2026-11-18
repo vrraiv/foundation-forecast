@@ -23,7 +23,7 @@ import pandas as pd
 from ..config import Config
 from ..data import targets as tg
 from ..data.store import as_of
-from ..data.transform import monthly_mean_from_daily, transform
+from ..data.transform import monthly_eom_ffill_from_daily, monthly_mean_from_daily, transform
 
 FIN_TRANSFORM = {"rate": "diff", "index": "log_diff"}
 
@@ -47,7 +47,11 @@ class Panel:
         return self.target_tr
 
     def multivariate(
-        self, max_vars: int | None = None, min_coverage: float = 0.8, max_stale: int = 12
+        self,
+        max_vars: int | None = None,
+        min_coverage: float = 0.8,
+        max_stale: int = 12,
+        balanced: bool = False,
     ) -> pd.DataFrame:
         """Target plus same-frequency conditioning variables, aligned on the target's index.
 
@@ -74,7 +78,23 @@ class Panel:
             if max_vars is not None and len(keep) >= max_vars:
                 break
         out = block.loc[window[0] :, keep]
+        if balanced:
+            # end at the target's last observation and fill interior gaps of the conditioning
+            # columns by carrying forward (for models that cannot take missing values)
+            out = out.loc[:last_t].copy()
+            out.iloc[:, 1:] = out.iloc[:, 1:].ffill()
+            out = out.dropna()
         return out
+
+    def target_periods(self, horizon: int) -> list[str]:
+        """Reference periods that forecast steps 1..horizon refer to: the periods after the
+        target's last observation in its own vintage."""
+        last = self.target_tr.index[-1]
+        if self.freq == "M":
+            p = pd.Period(last, freq="M")
+            return [f"{(p + h).year}-{(p + h).month:02d}" for h in range(1, horizon + 1)]
+        p = pd.Period(last.replace("-Q", "Q"), freq="Q")
+        return [f"{(p + h).year}-Q{(p + h).quarter}" for h in range(1, horizon + 1)]
 
 
 def _cond_sid(spec: dict, econ: str) -> str:
@@ -85,26 +105,55 @@ def _cond_sid(spec: dict, econ: str) -> str:
         return f"rtd:{spec['key']}"
     if src == "ecb_sdw":
         return f"ecb:{spec['flow']}.{spec['key']}"
-    if src == "valet_daily":
+    if src in ("valet_daily", "valet_monthly"):
         return f"valet:{spec['series']}"
     raise ValueError(src)
 
 
-def _cond_kind(spec: dict) -> str:
-    name = spec.get("name", "").lower()
-    if spec["source"] in ("ecb_sdw", "valet_daily"):
-        return "diff" if ("rate" in name or "yield" in name) else "log_diff"
-    if any(w in name for w in ("rate", "confidence", "sentiment", "utilisation")):
-        return "diff"
-    return "log_diff"
-
-
 def _cond_freq(spec: dict) -> str:
-    if spec["source"] in ("ecb_sdw", "valet_daily"):
-        return "D" if spec.get("series") != "M.BCPI" else "M"
-    if spec["source"] == "ecb_rtd":
+    src = spec["source"]
+    if src in ("ecb_sdw", "valet_daily"):
+        return "D"
+    if src == "valet_monthly":
+        return "M"
+    if src == "ecb_rtd":
         return spec["key"].split(".")[0]
     return spec["freq"]
+
+
+_PERIOD_RE = {"M": r"^\d{4}-\d{2}$", "Q": r"^\d{4}-Q[1-4]$"}
+
+
+def assert_regular_index(df: pd.DataFrame, freq: str) -> None:
+    """Every panel index must be unique, in one label format and without gaps."""
+    import re
+
+    idx = list(df.index)
+    if len(set(idx)) != len(idx):
+        raise ValueError("panel index has duplicate periods")
+    pat = re.compile(_PERIOD_RE[freq])
+    bad = [p for p in idx if not pat.match(str(p))]
+    if bad:
+        raise ValueError(f"panel index has labels in the wrong format: {bad[:5]}")
+    pi = pd.PeriodIndex([p.replace("-Q", "Q") for p in idx], freq=freq)
+    expected = pd.period_range(pi[0], pi[-1], freq=freq)
+    if len(expected) != len(pi) or (expected != pi).any():
+        raise ValueError("panel index has gaps or is unsorted")
+
+
+def _regularise(df: pd.DataFrame, freq: str) -> pd.DataFrame:
+    """Reindex to the full period range between first and last label and assert regularity."""
+    if df.empty:
+        return df
+    pi = pd.PeriodIndex([str(p).replace("-Q", "Q") for p in df.index], freq=freq)
+    full = pd.period_range(pi.min(), pi.max(), freq=freq)
+    labels = [f"{p.year}-{p.month:02d}" if freq == "M" else f"{p.year}-Q{p.quarter}" for p in full]
+    df = df.copy()
+    df.index = [f"{p.year}-{p.month:02d}" if freq == "M" else f"{p.year}-Q{p.quarter}" for p in pi]
+    out = df.reindex(labels)
+    out.index.name = "ref_period"
+    assert_regular_index(out, freq)
+    return out
 
 
 def build_panel(
@@ -134,12 +183,15 @@ def build_panel(
             continue
         fq = _cond_freq(spec)
         if fq == "D":
-            s = monthly_mean_from_daily(s)
-            cur = origin.strftime("%Y-%m")
-            s = s[s.index < cur]  # drop the incomplete current month
+            if spec.get("agg", "mean") == "ffill_eom":
+                s = monthly_eom_ffill_from_daily(s, origin)
+            else:
+                s = monthly_mean_from_daily(s)
+                cur = origin.strftime("%Y-%m")
+                s = s[s.index < cur]  # drop the incomplete current month
             fq = "M"
         try:
-            tr = transform(s, _cond_kind(spec))
+            tr = transform(s, spec["transform"])
         except ValueError as e:
             dropped.append(f"{sid}: {e}")
             continue
@@ -155,8 +207,8 @@ def build_panel(
     else:
         q = pd.concat([ttr.rename(res.series_id), q], axis=1)
         q = q.loc[ttr.index[0] :]
-    m = m.sort_index()
-    q = q.sort_index()
+    m = _regularise(m.sort_index(), "M")
+    q = _regularise(q.sort_index(), "Q")
     return Panel(
         origin,
         econ,

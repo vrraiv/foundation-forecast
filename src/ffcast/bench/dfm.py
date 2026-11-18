@@ -62,19 +62,35 @@ class DynamicFactorMQBench:
                 standardize=True,
             )
             res = mod.fit(disp=False, maxiter=self.maxiter)
-            steps = horizon if not target_is_quarterly else horizon * 3
-            fc = res.get_forecast(steps)
-        target = (
-            (q.columns[0] if target_is_quarterly else m.columns[0])
-            if q is not None or not target_is_quarterly
-            else m.columns[0]
-        )
-        mean = fc.predicted_mean[target].to_numpy()
-        sd = np.maximum(fc.se_mean[target].to_numpy(dtype=float), 1e-6)
+            # Steps refer to the periods after the target's last observation; the panel may
+            # extend beyond it (ragged edge), in which case the first steps are in-sample
+            # predictions of the missing target values from the Kalman smoother/filter.
+            if target_is_quarterly:
+                target = q.columns[0]
+                last_obs = q[target].dropna().index[-1]
+                start_p = (last_obs + 1).asfreq("M", how="end")
+                n_steps = horizon * 3
+            else:
+                target = m.columns[0]
+                last_obs = m[target].dropna().index[-1]
+                start_p = last_obs + 1
+                n_steps = horizon
+            end_p = start_p + n_steps - 1
+            pred = res.get_prediction(start=start_p, end=end_p)
+        mean_all = pred.predicted_mean[target]
+        se_all = pred.se_mean[target]
         if target_is_quarterly:
-            # keep quarter-end months only
-            idx = [i for i, p in enumerate(fc.predicted_mean.index) if p.month % 3 == 0][:horizon]
-            mean, sd = mean[idx], sd[idx]
+            keep = [p for p in mean_all.index if p.month % 3 == 0][:horizon]
+            mean = mean_all.loc[keep].to_numpy(dtype=float)
+            sd = np.maximum(se_all.loc[keep].to_numpy(dtype=float), 1e-6)
+        else:
+            mean = mean_all.to_numpy(dtype=float)[:horizon]
+            sd = np.maximum(se_all.to_numpy(dtype=float)[:horizon], 1e-6)
+        if target_is_quarterly:
+            p0 = mean_all.index[0].asfreq("Q")
+            step1_period = f"{p0.year}-Q{p0.quarter}"
+        else:
+            step1_period = str(mean_all.index[0]) if len(mean_all) else None
         qs = tuple(quantiles)
         return QuantileForecast(
             qs,
@@ -84,5 +100,6 @@ class DynamicFactorMQBench:
                 "loglike": float(res.llf),
                 "n_monthly": m.shape[1],
                 "n_quarterly": 0 if q is None else q.shape[1],
+                "step1_period": step1_period,
             },
         )

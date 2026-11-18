@@ -20,3 +20,8 @@ uv run just --list     # data, backtest, score, registry-run
 
 Python 3.12 via `uv`; CPU-only torch. Each foundation model runs in its own environment
 (see `docs/probes/models.md`). `data/` and `registry/` are git-ignored and never committed.
+
+## Commit guard
+
+Run `git config core.hooksPath .githooks` once per clone. The pre-commit hook refuses
+parquet, CSV, zip, log, registry and data files. The same rule is in `.gitignore`.

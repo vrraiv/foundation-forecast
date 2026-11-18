@@ -292,10 +292,13 @@ models:
     # Mixed-frequency dynamic factor model (statsmodels DynamicFactorMQ), monthly block plus
     # quarterly variables, factors and lag order fixed in advance, EM estimation on the
     # ragged-edge panel; quantiles from the Gaussian forecast distribution.
-    # em_initialization: statsmodels' default EM start (true) produced numerically broken fits at
-    # 52 of 5,200 cells in the first full run (log-likelihood about -1e54); see docs/backtest.md
-    # (Deviations) for the diagnosis and the value chosen on numerical validity alone.
-    dfm: {kind: dynamic_factor_mq, factors: 2, factor_order: 2, idiosyncratic_ar1: true, max_vars: 12, maxiter: 100, em_initialization: true}
+    # em_initialization: false (deviation recorded 2026-11-18). With statsmodels' default EM start
+    # the EM path diverged numerically at 52 of 5,200 cells in the first full run (log-likelihood
+    # about -1e54, forecasts to 1e97); from the alternative start all 52 converge, and on a seeded
+    # sample of 30 sane cells the log-likelihood differs from the default by -14 to +61 (median -10).
+    # Chosen on numerical validity alone, before any forecast was compared with an outturn; see
+    # docs/backtest.md (Deviations).
+    dfm: {kind: dynamic_factor_mq, factors: 2, factor_order: 2, idiosyncratic_ar1: true, max_vars: 12, maxiter: 100, em_initialization: false}
     # Estimation rule for all benchmarks: use every observation in the vintage, no COVID dummies
     # or sample splits; the exclusion window applies to scoring only.
     combo_bench: {kind: equal_weight, of: [ar, bvar, dfm]}

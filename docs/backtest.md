@@ -96,6 +96,37 @@ months later. Regressions: individual respondents pooled with forecaster fixed e
 consensus mean, each model, and the cross-model mean, on the same rounds and targets. TimesFM's
 `max_horizon` is raised to the SPF horizon for these runs only (recorded in the request file).
 
+## Deviations after the first full run
+
+Recorded here and in `STATUS.md`, as the config requires. None was chosen by looking at errors
+against outturns.
+
+1. **Canadian core CPI** added as CPI-XFET after the run started (owner approval); computed in a
+   second pass restricted to that target by the cache.
+2. **DFM numerical breakdown (2026-11-18).** A benchmark-only scoring pass showed the dynamic
+   factor model with log-likelihoods near -1e54 and forecasts up to 1e97 at 52 of 5,200
+   (origin, target, input mode) cells, contaminating `combo_bench`. The fitted transition
+   matrices were stationary; the EM iterations from statsmodels' default start ran normally for
+   about ten iterations and then diverged numerically (reproduced). Remedies were compared on
+   numerical validity only: `em_initialization=False` repaired 52 of 52 and, on a seeded sample of
+   30 sane cells, changed the log-likelihood by between -14 and +61 (median -10) relative to the
+   default; trimming the panel to the target's span also repaired 52 of 52 but changes the
+   estimation sample; a coverage filter alone repaired 10. The estimator setting with the fewest
+   new choices was taken: `em_initialization: false` in config. Every benchmark cell was then
+   recomputed (`BENCH_CODE_VERSION` 2 in the cache key; foundation-model keys unchanged); the
+   AR, BVAR and naive values must be identical to the first run and are checked against the
+   backed-up store.
+3. **Validity guard.** `backtest.validity` (config): a forecast is a numerical failure when a
+   quantile or mean is non-finite, the estimator's log-likelihood is below -1e10, or the largest
+   absolute quantile or mean exceeds 50 standard deviations of the model's own input history in
+   the space it forecast in. Failures are stored as status `error` with the reason, counted in
+   the summary, and never as values; the guard runs before the benchmark combination and on every
+   foundation-model response. The guard is applied when rows are stored and is not part of the
+   cache key.
+4. **Cache key.** The live-data source (`latest`) was removed from a target's key on 2026-11-18
+   because the backtest never reads it; this re-keyed every cell, so the two trial origins of
+   Chronos-2 and Moirai are recomputed in the second pass.
+
 ## Private summary
 
 `ffcast score` also writes `data/backtest/tables/SUMMARY.md` (`ffcast.eval.summary`): run

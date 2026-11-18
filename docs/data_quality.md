@@ -40,6 +40,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 | `oecd:EA.Q.B1GQ_Q.XDC._T` | oecd | 237 | 2001-04-01 | 2026-12-01 | 127 | 100 | 0 / 79 |
 | `oecd:EA.Q.P3_S1M_Q.XDC._T` | oecd | 212 | 2001-04-01 | 2026-12-01 | 126 | 100 | 0 / 78 |
 | `pseudo:eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]` | pseudo | 296 | 2000-01-24 | 2026-11-18 | 323 | 0 | 13 / 181 |
+| `pseudo:statcan:18100256:v1675033092` | pseudo | 471 | 1984-03-24 | 2026-11-18 | 514 | 0 | 204 / 372 |
 | `pseudo:valet:V41690973` | pseudo | 350 | 1995-03-24 | 2026-11-18 | 382 | 0 | 72 / 240 |
 | `rtd:M.S0.N.C_DJESB.X` | rtd | 259 | 2001-01-03 | 2026-10-28 | 478 | 46 | 84 / 336 |
 | `rtd:M.S0.N.C_EUR3M.E` | rtd | 261 | 2001-01-03 | 2026-10-28 | 393 | 11 | 84 / 252 |
@@ -71,6 +72,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 | `rtd:Q.S0.S.G_XGS_TO_C.E` | rtd | 197 | 2001-01-03 | 2026-10-28 | 126 | 240 | 39 / 79 |
 | `rtd:Q.S0.S.L_TEMP_TO.M` | rtd | 183 | 2001-02-28 | 2026-10-28 | 126 | 408 | 0 / 59 |
 | `rtd:Q.S0.S.Y_ISLCU.F` | rtd | 140 | 2001-01-03 | 2026-09-09 | 187 | 22 | 84 / 120 |
+| `statcan:18100256:v1675033092` | statcan | 1 | 2026-11-18 | 2026-11-18 | 514 | 0 | 0 / 0 |
 | `valet:B114039` | valet | 35 | 2009-04-21 | 2026-10-29 | 35 | 0 | 0 / 5 |
 | `valet:BD.CDN.10YR.DQ.YLD` | valet | 6469 | 2001-01-02 | 2026-11-16 | 6469 | 0 | 17 / 3523 |
 | `valet:FXUSDCAD` | valet | 2463 | 2017-01-03 | 2026-11-17 | 2463 | 0 | 0 / 0 |
@@ -240,6 +242,12 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 - Vintage gaps longer than 120 days: none
 - Suspected rebasings or definitional breaks (vintage, median ratio, periods): none detected
 - Area-code composition splice (first vintage per code): prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25] from 2000-01-24
+
+### `pseudo:statcan:18100256:v1675033092`
+
+- Vintage gaps longer than 120 days: none
+- Suspected rebasings or definitional breaks (vintage, median ratio, periods): none detected
+- Area-code composition splice (first vintage per code): v1675033092 from 1984-03-24
 
 ### `pseudo:valet:V41690973`
 
@@ -427,6 +435,11 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 - Suspected rebasings or definitional breaks (vintage, median ratio, periods): 2006-10-04 (0.99637, 87), 2011-04-06 (1.005, 100), 2012-02-08 (0.99877, 93), 2019-03-06 (0.99955, 156), 2020-03-11 (0.99891, 160), 2021-03-10 (1.00018, 164), 2022-07-20 (1.00039, 169), 2023-03-15 (0.99967, 172), 2025-03-05 (1.00014, 180), 2026-02-04 (0.99942, 184)
 - Area-code composition splice (first vintage per code): 00Z from 2001-01-03, 01Z from 2021-09-08
 
+### `statcan:18100256:v1675033092`
+
+- Vintage gaps longer than 120 days: none
+- Suspected rebasings or definitional breaks (vintage, median ratio, periods): none detected
+
 
 ## 3. Publication lags derived from first appearance (days after period end)
 
@@ -460,6 +473,7 @@ Generated 2026-11-18 from `data/normalised/` by `ffcast quality`. Tables only.
 | `oecd:EA.Q.B1GQ_Q.XDC._T` | 204 | 170 | 62 | 10080 | 60 | 11933 |
 | `oecd:EA.Q.P3_S1M_Q.XDC._T` | 203 | 185 | 92 | 10089 | 91 | 11933 |
 | `pseudo:eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]` | 322 | 24 | 24 | 24 | 18 | 53 |
+| `pseudo:statcan:18100256:v1675033092` | 512 | 24 | 24 | 24 | 18 | 53 |
 | `pseudo:valet:V41690973` | 380 | 24 | 24 | 24 | 18 | 53 |
 | `rtd:M.S0.N.C_DJESB.X` | 394 | 12 | 2 | 9053 | -1 | 12306 |
 | `rtd:M.S0.N.C_EUR3M.E` | 309 | 7 | 2 | 38 | -1 | 150 |
@@ -531,8 +545,6 @@ Edition-minus-newest-period lag in months, per OECD series. A lag of 1 means edi
 
 - statcan 36100431: WDS unreachable (Cloudflare challenge); using DBnomics mirror
 - CA/gdp: statcan latest table 36100104 unreachable (Cloudflare challenge)
-- CA/cpi_core: BLOCKED: no vintage source; the latest-data source (StatCan 18-10-0004) refuses scripted clients and has not been supplied by hand; 18-10-0256 (supplied) and Valet carry only CPI-XFET, a different measure
-- CA/cpi_core: statcan latest table 18100004 unreachable (Cloudflare challenge)
 - CA/unemp: statcan latest table 14100287 unreachable (Cloudflare challenge)
 - CA/retail: statcan latest table 20100067 unreachable (Cloudflare challenge)
 - statcan 36100431: WDS unreachable (Cloudflare challenge); using DBnomics mirror
@@ -581,6 +593,17 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   when the edition was published. The owner therefore chose the `conservative` rule
   (2026-11-18): edition M is dated the 1st of M+1 and first used at the origin of M+1. The
   `same_month_eve` dating is kept as a robustness variant (config switch; rerun `ffcast data`).
+
+- **Core CPI redefined as CPI-XFET (owner decision 2026-11-18).** All-items excluding food,
+  energy and the effect of changes in indirect taxes, NSA, 2002=100, StatCan table 18-10-0256
+  vector v1675033092, 1984-01 onward, from the owner-supplied browser download registered in
+  `data/raw/statcan-manual` (sha256 515424b0...). Replaces "all-items excluding food and
+  energy" (18-10-0004), which no public scripted source serves. Treated as unrevised except by
+  rebasing (owner's statement; not testable without vintages), so pseudo-vintages with the
+  headline-CPI timing (month m at the origin of m+1, January at m+2) and excluded from Q1. The
+  Bank of Canada Valet series STATIC_CPIXFET (year-over-year, one decimal, 1995-) equals the
+  index's implied rate at all 382 overlapping months (checked 2026-11-18); it is the live
+  cross-check, and chaining the index from it is a documented fallback for live updates only.
 
 ### Euro area
 

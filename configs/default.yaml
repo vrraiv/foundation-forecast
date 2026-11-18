@@ -80,18 +80,22 @@ targets:
       transform: log_diff
       exclude_from_q1: true
     cpi_core:
-      name: CPI excluding food and energy, NSA
+      # Owner decision 2026-11-18: the core measure is CPI-XFET (all-items excluding food, energy
+      # and the effect of changes in indirect taxes, NSA, 2002=100), replacing "all-items
+      # excluding food and energy" (StatCan 18-10-0004), which no public scripted source serves.
+      # Source: StatCan table 18-10-0256 (vector v1675033092, 1984-01 onward), supplied by the
+      # owner as a browser download and registered in data/raw/statcan-manual (sha256 515424b0...).
+      # Not revised except by rebasing (owner); pseudo-vintages with the headline-CPI timing
+      # (month m visible at the origin of m+1, January at m+2). The Bank of Canada Valet series
+      # STATIC_CPIXFET (year-over-year, 1 decimal, from 1995) matches the index's implied rate at
+      # every overlapping month and is the live cross-check; live updates come from a monthly
+      # 18-10-0256 download, with chaining from Valet's rounded rate as a documented fallback only.
+      name: CPI excluding food, energy and indirect taxes (CPI-XFET), NSA
       freq: M
-      vintages: null
-      latest: {source: statcan, table: "18100004"}
+      vintages: {source: pseudo, base: "statcan:18100256:v1675033092", months_after_period: 1, late_months: {1: 2}}
+      latest: {source: statcan_manual, table: "18100256", member: {GEO: Canada, "Alternative measures": "Consumer Price Index (CPI), all-items excluding food, energy and the effect of indirect taxes"}}
       transform: log_diff
       exclude_from_q1: true
-      # Owner-supplied StatCan files are read through `latest: {source: statcan_manual, ...}`
-      # (member selected by exact labels; the vector id is read from the file). The file supplied
-      # on 2026-11-18 is table 18-10-0256, which carries the ex-food-energy-and-indirect-taxes
-      # index (CPI-XFET) but not all-items excluding food and energy; the target stays blocked
-      # until 18-10-0004 is supplied or the owner redefines the measure.
-      blocked: "no vintage source; the latest-data source (StatCan 18-10-0004) refuses scripted clients and has not been supplied by hand; 18-10-0256 (supplied) and Valet carry only CPI-XFET, a different measure"
 
     unemp:
       name: Unemployment rate, LFS, SA

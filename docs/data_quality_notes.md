@@ -37,6 +37,17 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   (2026-11-18): edition M is dated the 1st of M+1 and first used at the origin of M+1. The
   `same_month_eve` dating is kept as a robustness variant (config switch; rerun `ffcast data`).
 
+- **Core CPI redefined as CPI-XFET (owner decision 2026-11-18).** All-items excluding food,
+  energy and the effect of changes in indirect taxes, NSA, 2002=100, StatCan table 18-10-0256
+  vector v1675033092, 1984-01 onward, from the owner-supplied browser download registered in
+  `data/raw/statcan-manual` (sha256 515424b0...). Replaces "all-items excluding food and
+  energy" (18-10-0004), which no public scripted source serves. Treated as unrevised except by
+  rebasing (owner's statement; not testable without vintages), so pseudo-vintages with the
+  headline-CPI timing (month m at the origin of m+1, January at m+2) and excluded from Q1. The
+  Bank of Canada Valet series STATIC_CPIXFET (year-over-year, one decimal, 1995-) equals the
+  index's implied rate at all 382 overlapping months (checked 2026-11-18); it is the live
+  cross-check, and chaining the index from it is a documented fallback for live updates only.
+
 ### Euro area
 
 - **RTD vintages are ECB snapshots, 8 a year since 2015**, taken the day before Governing

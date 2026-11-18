@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 (Phase 4 harness built; full backtest running; Canadian core CPI still blocked). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-18 (Phase 4 harness built; full backtest running; Canadian core CPI redefined as CPI-XFET). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -163,16 +163,15 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - Chrome extension was not connected in this session, so the agent could not run the
   browser test itself. Internet Archive downloads were denied by the session's permission
   classifier and were not retried.
-- Canadian core CPI (still blocked): the owner-supplied file registered on 2026-11-18
-  (`data/raw/statcan-manual/2026-11-18/18100256-eng.zip`, sha256 515424b0...) is table
-  18-10-0256 (core measures, Bank of Canada definitions). It carries CPI-trim/median/common,
-  CPIX and "all-items excluding food, energy and the effect of indirect taxes" (CPI-XFET,
-  v1675033092, 1984-01 onward) but not "all-items excluding food and energy", so it does not
-  serve the target as defined. The loader for owner-supplied tables is in place
-  (`latest: {source: statcan_manual, table, member}`; member chosen by exact labels, vector
-  read from the file). Needed: table 18-10-0004 as `18100004-eng.zip` (the CSV "download
-  entire table" zip) placed anywhere under `data/raw/` and registered, or a decision to
-  redefine the measure as CPI-XFET.
+- Canadian core CPI: **redefined 2026-11-18 (owner approval)** as CPI-XFET (all-items excluding
+  food, energy and the effect of indirect taxes, NSA) from StatCan 18-10-0256, supplied by the
+  owner as a browser download (`data/raw/statcan-manual/2026-11-18/18100256-eng.zip`, sha256
+  515424b0...), loaded through `latest: {source: statcan_manual, ...}` with pseudo-vintages. The
+  original definition (all-items excluding food and energy, 18-10-0004) had no public scripted
+  source. Valet STATIC_CPIXFET agrees with the file at every overlapping month and is the live
+  cross-check. Live-phase updates: monthly 18-10-0256 download by the owner (preferred) or
+  chaining from Valet's rounded year-over-year rate (fallback, documented). No target is blocked
+  any more.
 - Repository visibility: planning and probe docs are on a public remote; PLAN.md Gate 5
   expects private code. Owner to decide before Phase 1.
 

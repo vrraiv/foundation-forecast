@@ -1,0 +1,170 @@
+# Single source of configuration. No magic constants in code.
+# Values reflect HUMAN GATE 0 decisions (2026-11-17); see STATUS.md.
+
+economies: [CA, EA]
+
+origins:
+  # Day of month; if not a business day, the next business day.
+  day_of_month: 25
+  # Information set: observations with vintage_date strictly before the origin date.
+  strict_before: true
+  first: "2015-01-25"
+  extension_first: "2001-01-25"   # pre-registered extension where in-vintage history >= min_history_years
+  min_history_years: 10
+
+horizons:
+  M: [1, 3, 6, 12]
+  Q: [1, 2, 4]
+
+outturns:
+  - first_release
+  - vintage_12m_after_first_release
+
+transforms:
+  primary: stationary      # log-difference or difference, scored in that space
+  secondary: levels        # forecast levels, transform afterwards
+
+exclusion_windows:
+  covid: ["2020-01", "2021-06"]   # report with and without
+
+vintage_sources:
+  # How a month-stamped OECD edition gets a vintage date. "checked_same_month": edition M is
+  # dated day_of_month of M, and the data layer verifies that no observation in the edition
+  # was released after that date; otherwise the edition slides to the next month.
+  oecd_edition_rule: checked_same_month
+  oecd_dataflow: "OECD.SDD.STES,DSD_STES_REVISIONS@DF_STES_REVISIONS,4.0"
+  ecb_rtd_dataflow: "RTD"
+
+targets:
+  CA:
+    gdp:
+      name: Real GDP, expenditure-based
+      freq: Q
+      vintages: {source: statcan_rt, table: "36100431", fallback: {source: oecd, measure: B1GQ_Q, unit: XDC, activity: _T}}
+      latest: {source: statcan, table: "36100104"}
+      transform: log_diff
+    cpi:
+      name: CPI all items, NSA
+      freq: M
+      vintages: null                      # unrevised; publication lag enforced from the release calendar
+      latest: {source: valet, series: V41690973}
+      transform: log_diff
+      exclude_from_q1: true
+    cpi_core:
+      name: CPI excluding food and energy, NSA
+      freq: M
+      vintages: null                      # no vintage source; lag-only (Gate 0)
+      latest: {source: statcan, table: "18100004"}
+      transform: log_diff
+      exclude_from_q1: true
+    unemp:
+      name: Unemployment rate, LFS, SA
+      freq: M
+      vintages: {source: oecd, measure: UNEMP, unit: PT_LF, activity: _T}
+      latest: {source: statcan, table: "14100287"}
+      transform: diff
+    retail:
+      name: Retail sales volume
+      freq: M
+      vintages: {source: oecd, measure: TOVM, unit: IX, activity: G47}
+      latest: {source: statcan, table: "20100067"}
+      transform: log_diff
+    consumption:
+      name: Household final consumption expenditure, volume
+      freq: Q
+      vintages: {source: statcan_rt, table: "36100431", fallback: {source: oecd, measure: P3_S1M_Q, unit: XDC, activity: _T}}
+      latest: {source: statcan, table: "36100107"}
+      transform: log_diff
+  EA:
+    gdp:
+      name: Real GDP, chain-linked volumes, SA
+      freq: Q
+      vintages: {source: ecb_rtd, key: "Q.S0.S.G_GDPM_TO_C.E", fallback: {source: oecd, measure: B1GQ_Q, unit: XDC, activity: _T}}
+      latest: {source: eurostat, dataset: namq_10_gdp, filters: {na_item: B1GQ, unit: CLV_I15, s_adj: SCA}}
+      transform: log_diff
+    hicp:
+      name: HICP all items
+      freq: M
+      vintages: {source: ecb_rtd, key: "M.S0.N.P_C_OV.X", fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
+      latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOTAL, unit: I25}}
+      transform: log_diff
+    hicp_core:
+      name: HICP excluding energy, food, alcohol and tobacco
+      freq: M
+      vintages: null                      # no vintage source; lag-only (Gate 0)
+      latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOT_X_NRG_FOOD, unit: I25}}
+      transform: log_diff
+      exclude_from_q1: true
+    unemp:
+      name: Unemployment rate, SA
+      freq: M
+      vintages: {source: ecb_rtd, key: "M.S0.S.L_UNETO.F", fallback: {source: oecd, measure: UNEMP, unit: PT_LF, activity: _T}}
+      latest: {source: eurostat, dataset: une_rt_m, filters: {age: TOTAL, sex: T, unit: PC_ACT, s_adj: SA}}
+      transform: diff
+    retail:
+      name: Retail trade volume ex motor vehicles
+      freq: M
+      vintages: {source: oecd, measure: TOVM, unit: IX, activity: G47}   # RTD key stale since 2025-10
+      latest: {source: eurostat, dataset: sts_trtu_m, filters: {nace_r2: G47, indic_bt: VOL_SLS, s_adj: SCA, unit: I21}}
+      transform: log_diff
+    consumption:
+      name: Household and NPISH final consumption, chain-linked volumes
+      freq: Q
+      vintages: {source: ecb_rtd, key: "Q.S0.S.G_FCHI_TO_C.E", fallback: {source: oecd, measure: P3_S1M_Q, unit: XDC, activity: _T}}
+      latest: {source: eurostat, dataset: namq_10_gdp, filters: {na_item: P31_S14_S15, unit: CLV_I15, s_adj: SCA}}
+      transform: log_diff
+
+models:
+  foundation:
+    chronos2:
+      hf_id: amazon/chronos-2
+      revision: 29ec3766d36d6f73f0696f85560a422f50e8498c
+      weights_date: "2025-10-30"
+      licence: Apache-2.0
+      env: chronos
+      variants: [univariate, multivariate]
+    timesfm25:
+      hf_id: google/timesfm-2.5-200m-pytorch
+      revision: 1d952420fba87f3c6dee4f240de0f1a0fbc790e3
+      weights_date: "2025-10-01"
+      licence: Apache-2.0
+      env: timesfm
+      variants: [univariate]
+    tirex:
+      hf_id: NX-AI/TiRex
+      revision: 43ebaaff068c1390785c387b3e5178df3f4c92ca
+      weights_date: "2025-05-26"
+      licence: NXAI-Community
+      env: tirex
+      variants: [univariate]
+    tirex2:
+      hf_id: NX-AI/TiRex-2
+      revision: 352636173653592b6dceb3fbeee9224ca97952a9
+      weights_date: "2026-10-06"       # safetensors upload; ckpt 2026-07-02. Ambiguous, see feasibility.
+      licence: Apache-2.0
+      env: tirex2
+      variants: [univariate, multivariate]
+    moirai2:
+      hf_id: Salesforce/moirai-2.0-R-small
+      revision: 30f43ff08c8494f4943ae1521e9d4e94a0fbb389
+      weights_date: "2025-08-06"
+      licence: CC-BY-NC-4.0
+      env: moirai
+      variants: [univariate]
+  benchmarks:
+    naive: {kind: random_walk_or_mean}
+    ar: {kind: ar_direct, max_lag: {M: 12, Q: 4}, selection: bic}
+    bvar: {kind: bvar_minnesota, hyper: marginal_likelihood}
+    dfm: {kind: dynamic_factor_mq}
+    combo_bench: {kind: equal_weight, of: [ar, bvar, dfm]}
+    combo_fm: {kind: equal_weight, of: [chronos2, timesfm25, tirex, tirex2, moirai2]}
+
+scoring:
+  quantiles: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+  interval_coverage: 0.8
+  relative_to: ar
+  dm_correction: harvey_leybourne_newbold
+
+registry:
+  first_scoring_min_origins: 12
+  opentimestamps: stub      # real stamping only after Gate 5

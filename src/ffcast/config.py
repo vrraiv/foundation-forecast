@@ -28,6 +28,7 @@ class Target(BaseModel):
     latest: dict[str, Any]
     transform: Literal["log_diff", "diff"]
     exclude_from_q1: bool = False
+    blocked: str | None = None
 
 
 class FoundationModel(BaseModel):
@@ -48,6 +49,7 @@ class Config(BaseModel):
     exclusion_windows: dict[str, list[str]]
     vintage_sources: dict[str, Any]
     targets: dict[str, dict[str, Target]]
+    conditioning: dict[str, list[dict[str, Any]]]
     models: dict[str, dict[str, Any]]
     scoring: dict[str, Any]
     registry: dict[str, Any]

@@ -57,20 +57,20 @@ X,CAN,M,CP,IX,_Z,202403,2024-01,103.0,A,0,0,2015
 def test_oecd_editions_to_changelog_same_month_rule(tmp_path: Path):
     p = tmp_path / "oecd.csv"
     p.write_text(OECD_CSV, encoding="utf-8")
-    table = oecd.normalise(p, rule="checked_same_month", day_of_month=25)
+    table = oecd.normalise(p, rule="same_month_eve", day_of_month=25)
     sid = "oecd:CAN.M.CP.IX._Z"
     assert set(table["vintage_date"]) == {
-        dt.date(2024, 1, 25),
-        dt.date(2024, 2, 25),
-        dt.date(2024, 3, 25),
+        dt.date(2024, 1, 24),
+        dt.date(2024, 2, 24),
+        dt.date(2024, 3, 24),
     }
-    # origin 25 Feb 2024 (strict): only the January edition is visible
-    assert as_of(table, [sid], dt.date(2024, 2, 25))[sid].to_dict() == {
+    # origin 24 Feb 2024 (strict): only the January edition is visible
+    assert as_of(table, [sid], dt.date(2024, 2, 24))[sid].to_dict() == {
         "2023-10": 100.0,
         "2023-11": 101.0,
     }
-    # origin 26 Feb: February edition visible, revision to 2023-11 applied
-    assert as_of(table, [sid], dt.date(2024, 2, 26))[sid].to_dict() == {
+    # origin 25 Feb (the origin day): February edition visible, revision to 2023-11 applied
+    assert as_of(table, [sid], dt.date(2024, 2, 25))[sid].to_dict() == {
         "2023-10": 100.0,
         "2023-11": 101.5,
         "2023-12": 102.0,
@@ -81,6 +81,22 @@ def test_oecd_editions_to_changelog_same_month_rule(tmp_path: Path):
         "2023-12": 102.0,
         "2024-01": 103.0,
     }
+
+
+def test_oecd_same_month_rule_visible_at_every_origin(tmp_path: Path):
+    """Under same_month_eve, edition M must be visible at the month-M origin for every month,
+    including months where the origin rolls forward over a weekend."""
+    from ffcast.data.sources.oecd import edition_vintage_date
+    from ffcast.origins import origin_date
+
+    for y in range(2015, 2027):
+        for m in range(1, 13):
+            ed = f"{y}{m:02d}"
+            vd = edition_vintage_date(ed, "same_month_eve", 25)
+            o = origin_date(y, m, 25)
+            assert vd < o, (ed, vd, o)
+            vd_c = edition_vintage_date(ed, "conservative", 25)
+            assert vd_c > o, (ed, vd_c, o)
 
 
 def test_oecd_conservative_rule_shifts_to_next_month(tmp_path: Path):

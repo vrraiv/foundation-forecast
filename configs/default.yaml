@@ -28,14 +28,18 @@ exclusion_windows:
   covid: ["2020-01", "2021-06"]   # report with and without
 
 vintage_sources:
-  # How a month-stamped OECD edition gets a vintage date. "checked_same_month": edition M is
-  # dated day_of_month of M, and the data layer verifies that no observation in the edition
-  # was released after that date; otherwise the edition slides to the next month.
-  oecd_edition_rule: checked_same_month
+  # How a month-stamped OECD edition gets a vintage date. "same_month_eve": edition M is dated
+  # the day before the origin day of month M, so it is visible at that month's origin. This is
+  # an assumption about OECD publication timing (evidence: docs/data_quality.md section 4).
+  # "conservative": edition M is dated the 1st of M+1 (visible one origin later).
+  oecd_edition_rule: same_month_eve
   oecd_dataflow: "OECD.SDD.STES,DSD_STES_REVISIONS@DF_STES_REVISIONS,4.0"
   # Euro-area OECD editions are a splice of area codes; each edition exists under one code.
   oecd_area_codes: {CA: [CAN], EA: [EA18, EA19, EA20]}
   ecb_rtd_dataflow: "RTD"
+  # A primary source is used at an origin only if its latest vintage is at most this many days
+  # old; otherwise the target's fallback source is used (see ffcast.data.targets).
+  max_staleness_days: {rtd: 100, oecd: 45, dbnomics: 130, pseudo: 45}
   # RTD keys downloaded for cross-checking OECD editions (precise dates to 2025-10 only).
   cross_check_rtd_keys: ["M.S0.Y.I_XCONS.X", "M.S0.Y.O_RTXMOTVD.X"]
   # OECD series downloaded although not a vintage source for a target (CPI non-revision check,
@@ -56,17 +60,21 @@ targets:
     cpi:
       name: CPI all items, NSA
       freq: M
-      vintages: null                      # unrevised; publication lag enforced from the release calendar
+      # Unrevised (verified across OECD editions). Pseudo-vintages: month m is assumed public
+      # at the origin of month m+1 (StatCan releases CPI on the 14th-22nd of m+1).
+      vintages: {source: pseudo, base: "valet:V41690973", months_after_period: 1, fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
       latest: {source: valet, series: V41690973}
       transform: log_diff
       exclude_from_q1: true
     cpi_core:
       name: CPI excluding food and energy, NSA
       freq: M
-      vintages: null                      # no vintage source; lag-only (Gate 0)
+      vintages: null
       latest: {source: statcan, table: "18100004"}
       transform: log_diff
       exclude_from_q1: true
+      blocked: "no vintage source, and the only latest-data source (StatCan 18-10-0004) refuses scripted clients; Valet CPI-XFET is a different measure"
+
     unemp:
       name: Unemployment rate, LFS, SA
       freq: M
@@ -101,7 +109,10 @@ targets:
     hicp_core:
       name: HICP excluding energy, food, alcohol and tobacco
       freq: M
-      vintages: null                      # no vintage source; lag-only (Gate 0)
+      # No vintage source (Gate 0). Pseudo-vintages: month m assumed public at the origin of
+      # month m+1 (final HICP is released on the 17th-24th of m+1). Latest values, so revisions
+      # (small for HICP) are ignored; excluded from Q1.
+      vintages: {source: pseudo, base: "eurostat:prc_hicp_minr[coicop18=TOT_X_NRG_FOOD.geo=EA.unit=I25]", months_after_period: 1}
       latest: {source: eurostat, dataset: prc_hicp_minr, filters: {coicop18: TOT_X_NRG_FOOD, unit: I25, geo: EA}}
       transform: log_diff
       exclude_from_q1: true
@@ -123,6 +134,59 @@ targets:
       vintages: {source: ecb_rtd, key: "Q.S0.S.G_FCHI_TO_C.E", fallback: {source: oecd, measure: P3_S1M_Q, unit: XDC, activity: _T}}
       latest: {source: eurostat, dataset: namq_10_gdp, filters: {na_item: P31_S14_S15, unit: CLV_I15, s_adj: SCA}}
       transform: log_diff
+
+# Conditioning set for multivariate models and benchmarks. Fixed in advance (2026-11-18), before
+# any forecast exists. Rule: (a) every OECD STES-revisions measure with monthly editions for the
+# economy that is not already a target, plus the euro-area RTD keys that were live at the
+# 2026-10-28 vintage, grouped by block; (b) unrevised financial series dated by their own
+# observation date (policy rate, 10-year yield, USD exchange rate, equity index where public,
+# commodity index for Canada). Oil is not available from a public keyless source for the euro
+# area (RTD Brent key stale since 2024-11) and is omitted for both economies.
+conditioning:
+  CA:
+    - {source: oecd, freq: M, measure: PRVM, unit: IX, activity: BTE, name: industrial production}
+    - {source: oecd, freq: M, measure: EMP, unit: PS, activity: _T, name: employment}
+    - {source: oecd, freq: M, measure: H_EARN, unit: IX, activity: C, name: hourly earnings in manufacturing}
+    - {source: oecd, freq: M, measure: MABM, unit: XDC, activity: _Z, name: broad money}
+    - {source: oecd, freq: M, measure: EX, unit: XDC, activity: _T, name: exports value}
+    - {source: oecd, freq: M, measure: IM, unit: XDC, activity: _T, name: imports value}
+    - {source: oecd, freq: Q, measure: B1GQ_D, unit: IX, activity: _T, name: GDP deflator}
+    - {source: oecd, freq: Q, measure: P51G_Q, unit: XDC, activity: _T, name: gross fixed capital formation}
+    - {source: oecd, freq: Q, measure: P6_Q, unit: XDC, activity: _T, name: exports volume}
+    - {source: oecd, freq: Q, measure: P7_Q, unit: XDC, activity: _T, name: imports volume}
+    - {source: valet_daily, series: B114039, name: target for the overnight rate}
+    - {source: valet_daily, series: BD.CDN.10YR.DQ.YLD, name: 10-year benchmark bond yield}
+    - {source: valet_daily, series: FXUSDCAD, name: USD/CAD}
+    - {source: valet_daily, series: M.BCPI, name: Bank of Canada commodity price index (monthly)}
+  EA:
+    - {source: ecb_rtd, key: M.S0.N.P_C_SERV.X, name: HICP services}
+    - {source: ecb_rtd, key: M.S0.N.P_C_IGXE.X, name: HICP non-energy industrial goods}
+    - {source: ecb_rtd, key: M.S0.N.P_C_NRGY.X, name: HICP energy}
+    - {source: ecb_rtd, key: M.S0.N.P_C_FOOD.X, name: HICP food}
+    - {source: ecb_rtd, key: M.S0.N.M_M3_V_NC.E, name: M3}
+    - {source: ecb_rtd, key: M.S0.N.M_M1_V_NC.E, name: M1}
+    - {source: ecb_rtd, key: M.S0.N.M_LOAN_U_NG.E, name: loans to private sector}
+    - {source: ecb_rtd, key: M.S0.S.Y_ESIND.F, name: economic sentiment indicator}
+    - {source: ecb_rtd, key: M.S0.S.Y_CSCCI.F, name: consumer confidence}
+    - {source: ecb_rtd, key: M.S0.S.Y_ISICI.F, name: industrial confidence}
+    - {source: ecb_rtd, key: M.S0.S.Y_SSSCI.F, name: services confidence}
+    - {source: ecb_rtd, key: M.S0.S.Y_RSRCI.F, name: retail confidence}
+    - {source: ecb_rtd, key: M.S0.N.C_EUR3M.E, name: 3-month Euribor}
+    - {source: ecb_rtd, key: M.S0.N.E_EN00_NGR.X, name: nominal effective exchange rate}
+    - {source: ecb_rtd, key: M.S0.S.T_XTTT.E, name: extra-EA exports value}
+    - {source: ecb_rtd, key: M.S0.S.T_MTTT.E, name: extra-EA imports value}
+    - {source: ecb_rtd, key: M.S0.N.C_DJESB.X, name: Euro Stoxx broad index}
+    - {source: ecb_rtd, key: M.S0.S.L_FMU25.F, name: youth unemployment rate}
+    - {source: ecb_rtd, key: Q.S0.S.G_GFCF_TO_C.E, name: gross fixed capital formation}
+    - {source: ecb_rtd, key: Q.S0.S.G_XGS_TO_C.E, name: exports volume}
+    - {source: ecb_rtd, key: Q.S0.S.G_MGS_TO_C.E, name: imports volume}
+    - {source: ecb_rtd, key: Q.S0.S.L_TEMP_TO.M, name: total employment}
+    - {source: ecb_rtd, key: Q.S0.S.G_GDPM_TO_D.X, name: GDP deflator}
+    - {source: ecb_rtd, key: Q.S0.S.Y_ISLCU.F, name: capacity utilisation}
+    - {source: ecb_sdw, flow: FM, key: B.U2.EUR.4F.KR.DFR.LEV, name: deposit facility rate (date of change)}
+    - {source: ecb_sdw, flow: FM, key: B.U2.EUR.4F.KR.MRR_FR.LEV, name: main refinancing rate (date of change)}
+    - {source: ecb_sdw, flow: EXR, key: D.USD.EUR.SP00.A, name: USD/EUR}
+    - {source: ecb_sdw, flow: YC, key: B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y, name: AAA government yield curve 10-year}
 
 models:
   foundation:
@@ -161,11 +225,26 @@ models:
       licence: CC-BY-NC-4.0
       env: moirai
       variants: [univariate]
+  # Inference settings frozen before any forecast is made (2026-11-18).
+  settings:
+    common: {seed: 0, threads: 4, max_context: 512, allow_download: true}
+    timesfm25: {max_horizon: 12, normalize_inputs: true, use_continuous_quantile_head: true, force_flip_invariance: true, infer_is_positive: false, fix_quantile_crossing: true}
+    moirai2: {num_samples: 200}
   benchmarks:
     naive: {kind: random_walk_or_mean}
     ar: {kind: ar_direct, max_lag: {M: 12, Q: 4}, selection: bic}
-    bvar: {kind: bvar_minnesota, hyper: marginal_likelihood}
-    dfm: {kind: dynamic_factor_mq}
+    # Minnesota BVAR, hyperparameters (overall tightness lambda, lag decay, sum-of-coefficients
+    # and dummy-initial-observation priors) chosen by maximising the marginal likelihood over
+    # a fixed grid at each origin (Giannone, Lenza, Primiceri 2015). Ragged edge: variables
+    # with a shorter last observation are filled by their own conditional forecast within
+    # the BVAR before forecasting the target (Kalman-filter conditioning), never truncated.
+    bvar: {kind: bvar_minnesota, hyper: marginal_likelihood, lags: {M: 6, Q: 2}, lambda_grid: [0.05, 0.1, 0.2, 0.3, 0.5, 1.0, 2.0], decay: 1.0, soc_grid: [0.5, 1.0, 2.0], dio_grid: [0.5, 1.0, 2.0], max_vars: 12, quantiles_from: posterior_predictive, draws: 500}
+    # Mixed-frequency dynamic factor model (statsmodels DynamicFactorMQ), monthly block plus
+    # quarterly variables, factors and lag order fixed in advance, EM estimation on the
+    # ragged-edge panel; quantiles from the Gaussian forecast distribution.
+    dfm: {kind: dynamic_factor_mq, factors: 2, factor_order: 2, idiosyncratic_ar1: true, max_vars: 12, maxiter: 100}
+    # Estimation rule for all benchmarks: use every observation in the vintage, no COVID dummies
+    # or sample splits; the exclusion window applies to scoring only.
     combo_bench: {kind: equal_weight, of: [ar, bvar, dfm]}
     combo_fm: {kind: equal_weight, of: [chronos2, timesfm25, tirex, tirex2, moirai2]}
 

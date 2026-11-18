@@ -1,0 +1,16 @@
+[project]
+name = "ffcast-env-moirai"
+version = "0.1.0"
+description = "Isolated inference environment for the moirai foundation model (worker only; never imports ffcast)"
+requires-python = ">=3.12,<3.13"
+dependencies = ["uni2ts>=2.0,<2.1", "torch>=2.4,<2.5", "numpy>=1.26,<2", "huggingface-hub", "numpy", "pandas"]
+
+[tool.uv]
+package = false
+link-mode = "copy"
+index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = false

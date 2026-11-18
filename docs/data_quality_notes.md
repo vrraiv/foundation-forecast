@@ -45,6 +45,9 @@ one vintage only, so rebasings and chain-linking changes never enter a model inp
   2005 (periods before 1991 deleted at 2005-11); HICP rebased to 2025=100 in the 2026-02-04
   vintage; HICP 1990-1995 observations removed at 2024-04-10 (72 blank Replace rows treated
   as deletes).
+- **RTD unemployment gap**: `M.S0.S.L_UNETO.F` has no vintage between 2024-03-06 and
+  2025-07-23 (16 months); at origins in that window the resolver hands the target to the OECD
+  fallback because the RTD vintage is older than 100 days.
 - **Stale RTD keys**: industrial production and retail trade have no vintage after
   2025-10-29. OECD editions are the vintage source for retail; RTD is kept as a cross-check.
 - **No vintage source for HICP excluding energy, food, alcohol and tobacco.** Lag-only series

@@ -67,6 +67,26 @@ def quality() -> None:
 
 
 @app.command()
+def smoke(
+    origin: str = typer.Option("2024-06-25", help="Origin date YYYY-MM-DD"),
+    models: str = typer.Option("", help="Comma-separated foundation models to run (default all)"),
+) -> None:
+    """Phase 3 smoke test: every model and benchmark forecasts every target at one origin."""
+    import datetime as dt
+    from pathlib import Path
+
+    from .models.smoke import run_smoke
+
+    mlist = [m for m in models.split(",") if m] or None
+    out = Path(__file__).resolve().parents[2] / "data" / "smoke" / f"smoke_{origin}.csv"
+    df = run_smoke(dt.date.fromisoformat(origin), models=mlist, out_path=out)
+    with_pd_options = df.to_string(index=False, max_colwidth=60)
+    typer.echo(with_pd_options)
+    bad = df[~df["ok"] & (df["variant"] != "wall")]
+    typer.echo(f"\n{len(df)} rows, {len(bad)} failed checks; written to {out}")
+
+
+@app.command()
 def backtest() -> None:
     """Run the historical backtest (Phase 4)."""
     raise typer.Exit(code=_not_implemented("backtest"))

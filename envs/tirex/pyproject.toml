@@ -1,0 +1,16 @@
+[project]
+name = "ffcast-env-tirex"
+version = "0.1.0"
+description = "Isolated inference environment for the tirex foundation model (worker only; never imports ffcast)"
+requires-python = ">=3.12,<3.13"
+dependencies = ["tirex-ts>=1.4,<1.5", "torch>=2.15,<2.16", "huggingface-hub", "numpy", "pandas"]
+
+[tool.uv]
+package = false
+link-mode = "copy"
+index-strategy = "unsafe-best-match"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = false

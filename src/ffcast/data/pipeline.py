@@ -108,6 +108,21 @@ def run_data(
     for econ, tname, spec in pseudo_specs:
         base = spec["base"]
         p = out_root / f"{safe_name(base)}.parquet"
+        if not p.exists() and base.startswith(f"{valet.SOURCE}:"):
+            # the base is not this target's `latest` source (Canadian headline CPI since
+            # 2026-11-19: live source StatCan, pseudo-vintage base still the Valet mirror, so the
+            # backtest rule and its cache keys are unchanged): download the base for itself
+            series = base.split(":", 1)[1]
+            try:
+                rf = valet.download(store, series)
+                save(
+                    valet.series_id(series),
+                    valet.normalise(rf.path, series, store.today),
+                    valet.SOURCE,
+                    [str(rf.path)],
+                )
+            except DownloadError as e:
+                rep.problem(f"{econ}/{tname} [pseudo base {base}]: {e}")
         if not p.exists():
             rep.problem(f"{econ}/{tname}: pseudo-vintage base {base} not available")
             continue

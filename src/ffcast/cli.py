@@ -240,10 +240,101 @@ def spf(
     typer.echo(str(rep))
 
 
+def _registry_paths(root: str, ledger: str):
+    from pathlib import Path
+
+    from .registry.core import LEDGER_PATH, REGISTRY_ROOT, Paths
+
+    r = Path(root) if root else REGISTRY_ROOT
+    led = Path(ledger) if ledger else (LEDGER_PATH if not root else r / "ledger.jsonl")
+    return Paths(root=r, ledger=led)
+
+
+@app.command("registry-init")
+def registry_init(
+    root: str = typer.Option("", help="Registry folder (default: registry/; scratch for a trial)"),
+    ledger: str = typer.Option("", help="Ledger file (default: ledger/ledger.jsonl)"),
+    prereg: str = typer.Option("", help="Pre-registration text (default: PREREGISTRATION.md)"),
+) -> None:
+    """First ledger entry: the hash of the pre-registration text (Phase 5, after Gate 5)."""
+    from pathlib import Path
+
+    from .registry import core
+
+    paths = _registry_paths(root, ledger)
+    if not root:
+        from .config import load_config
+
+        if not load_config().registry.get("enabled", False):
+            typer.echo(
+                "registry.enabled is false: the real ledger waits for HUMAN GATE 5", err=True
+            )
+            raise typer.Exit(code=2)
+    e = core.init_genesis(paths, Path(prereg) if prereg else core.PREREG_PATH)
+    typer.echo(f"entry 0: pre-registration {e['payload_sha256']}  entry hash {e['entry_hash']}")
+
+
 @app.command("registry-run")
-def registry_run(origin: str = typer.Argument("", help="Origin date YYYY-MM-DD")) -> None:
-    """Run one live registry origin (Phase 5)."""
-    raise typer.Exit(code=_not_implemented("registry-run"))
+def registry_run(
+    origin: str = typer.Argument("", help="Origin date YYYY-MM-DD (default: the current origin)"),
+    root: str = typer.Option("", help="Registry folder (default: registry/; scratch for a trial)"),
+    ledger: str = typer.Option("", help="Ledger file (default: ledger/ledger.jsonl)"),
+    dry_run: bool = typer.Option(False, help="Trial in a scratch root; recorded in the manifest"),
+    accept_incomplete: bool = typer.Option(
+        False, help="Seal although some downloads failed (affected targets are skipped)"
+    ),
+) -> None:
+    """Run one live registry origin: snapshot, forecast, seal, ledger entry (Phase 5)."""
+    import datetime as dt
+    import json
+
+    from .registry import core
+
+    res = core.registry_run(
+        dt.date.fromisoformat(origin) if origin else None,
+        paths=_registry_paths(root, ledger),
+        dry_run=dry_run,
+        accept_incomplete=accept_incomplete,
+    )
+    res["status_counts"] = {"/".join(k): int(v) for k, v in res["status_counts"].items()}
+    typer.echo(json.dumps(res, indent=1, default=str))
+
+
+@app.command("registry-status")
+def registry_status(
+    root: str = typer.Option("", help="Registry folder (default: registry/)"),
+    ledger: str = typer.Option("", help="Ledger file (default: ledger/ledger.jsonl)"),
+) -> None:
+    """Print whether a run is due today, as JSON (the scheduled job reads `due`)."""
+    import json
+
+    from .registry import core
+
+    typer.echo(json.dumps(core.status(_registry_paths(root, ledger))))
+
+
+@app.command("registry-verify")
+def registry_verify(
+    root: str = typer.Option("", help="Registry folder (default: registry/)"),
+    ledger: str = typer.Option("", help="Ledger file (default: ledger/ledger.jsonl)"),
+    recompute: str = typer.Option("", help="Also rerun this origin from its stored snapshot"),
+) -> None:
+    """Check every ledger entry against the private files; optionally rerun one origin."""
+    import datetime as dt
+
+    from .registry import core
+
+    paths = _registry_paths(root, ledger)
+    problems = core.verify(paths)
+    for p in problems:
+        typer.echo(f"PROBLEM: {p}", err=True)
+    if recompute:
+        same = core.recompute(dt.date.fromisoformat(recompute), paths)
+        typer.echo(f"recompute {recompute}: {same}")
+        if not all(same.values()):
+            problems.append("recomputed files differ")
+    typer.echo("ledger verified: every entry matches" if not problems else "verification FAILED")
+    raise typer.Exit(code=1 if problems else 0)
 
 
 def _not_implemented(name: str) -> int:

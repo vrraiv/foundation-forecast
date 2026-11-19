@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-19 afternoon (TimesFM 3.0 added by owner decision, backtested, scored, its tables published in `docs/results_backtest_2026-11-19.md`, then retired by owner decision: five foundation models go forward. Owner decisions the same day: repository visibility, licences, Canadian retail live series = StatCan v1446870183, `combo_fm` unchanged. **Nothing is waiting on the owner; Phase 5 can start.** Cloud backup is a to-do. Phase 4 done 2026-11-18: 310 origins, all models, scored, Gate 4 passed as a plausibility check). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-19 afternoon (TimesFM 3.0 added by owner decision, backtested, scored, its tables published in `docs/results_backtest_2026-11-19.md`, then retired by owner decision: five foundation models go forward. Owner decisions the same day: repository visibility, licences, Canadian retail live series = StatCan v1446870183, `combo_fm` unchanged. Owner started Phase 5 the same day; it is built, trialled and **at HUMAN GATE 5: see "HUMAN GATE 5" under "Blocked or needing the owner".** Cloud backup is a to-do. Phase 4 done 2026-11-18: 310 origins, all models, scored, Gate 4 passed as a plausibility check). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -12,7 +12,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
 | 3 Models and benchmarks | **Done.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and all five foundation models of the time (Chronos-2, TimesFM 2.5, TiRex, TiRex-2, Moirai 2.0; 12 model-variant combinations; TimesFM 3.0 was added on 2026-11-19 and smoke-tested separately, 21 tasks, see `docs/model_cards.md`) pass every sane-magnitude and step-1 alignment check on 11 targets (132 checks); step 1 refers to the same target period across models; reruns byte-identical. Realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. Canadian core CPI blocked (no public scripted source). |
 | 4 Backtest and scoring | **Done. Results published: `docs/results_backtest_2026-11-18.md`. HUMAN GATE 4 passed 2026-11-18 (plausibility check only; the owner reviewed the tables visually, asked for three decompositions, found the tables plausible, and made no design change).** Harness, forecast store, outturns, scoring tables, Q2 splits, Q4 fixed-event regressions and the ECB SPF comparison are built and tested (`docs/backtest.md`); rules fixed in config and committed before the first run. Full run (`ffcast backtest --window all`: 311 origins 2001-01 to 2026-11, both input modes, all models) started 2026-11-18 07:52 local. SPF run and `ffcast score` follow when it ends. A benchmark-only scoring pass (2026-11-18 midday) found the dynamic factor model producing numerically broken forecasts (log-likelihood about -1e54, values up to 1e97) at about 60 origin-target cells, contaminating `combo_bench`. Diagnosed and fixed the same day on numerical validity alone (`em_initialization: false` repairs 52 of 52; validity guard for every model; `docs/backtest.md` Deviations); every benchmark cell is recomputed under `BENCH_CODE_VERSION` 2 with the foundation-model keys unchanged. **State at 15:28 local:** the harness stopped both jobs for machine-wide memory pressure. The model stage had finished (130 of 130 worker files, every worker ok, all five models over 310 origins) but its merge into the store had not run; the benchmark recompute had covered 269 of 310 origins. On those 269 the AR/BVAR/naive values are identical to the first run row for row, the DFM breakdown is gone (47 origins with absurd values -> 0; 53 formerly failing cells now estimate, none the other way; 169 pre-existing input-data failures remain and are recorded), and the validity guard caught 11 multivariate BVAR cells at the 2020-08..11 origins (`docs/backtest.md`, Deviations 2-3 and Run log). Stage 3 now merges one model at a time, and the cache works per (origin, target, input-mode) cell with keyed skips, which was needed for the core CPI second pass to run at all (`docs/backtest.md` Deviations 5). **Restarted 2026-11-18 evening after the owner's reboot, one job at a time:** stage 3 merged all 310 origins into the model store (74,670 model tasks ok, 0 errors, guard tripped on no model response); the benchmark recompute then finished the remaining 41 origins and re-keyed every skipped cell (50 min, 4 processes, nothing re-estimated elsewhere). Against the backup, all 310 origins now show AR/BVAR/naive identical row for row, DFM 57 cells repaired and none broken, 169 input-data errors unchanged, 11 BVAR guard trips. The second model pass ran 18:12-18:59: 4,570 model tasks (core CPI, real-time input, every model at all 310 origins; the two re-keyed trial origins of Chronos-2 and Moirai), all ok, 0 errors, nothing else recomputed; the model store now holds every model with status ok at every estimated cell and 1,704 keyed skips. Benchmark verify passed (`--verify` recomputes benchmarks only, no model: 5 random origins plus, by hand, two of the 41 post-reboot origins, 2024-10 and 2026-03, all identical to the store; recorded as `data/backtest/verify_<stamp>.json`, which the summary reads) and the final store comparison is unchanged (classical benchmarks identical to the backup on all 310 origins). **No job is running.** The owner took both decisions on the evening of 2026-11-18 (guard kept as configured; DFM coverage rule unchanged), so nothing was recomputed. `ffcast score` wrote the four main tables and then failed in the fixed-event regression (two scoring-code defects, fixed with tests, `docs/backtest.md` Deviations 6; no forecast or rule touched); `ffcast spf` ran clean (46 rounds, every worker ok); the bias table and the summary were regenerated at 22:17. **Gate 4 document: the 18 Nov `SUMMARY.md`, since 2026-11-19 kept at `data/backtest/_backup_before_timesfm3_20261119/tables/SUMMARY.md` (hash verified equal to the published `cd9ad787...`); `data/backtest/tables/SUMMARY.md` now holds the 19 Nov version with TimesFM 3.0** (private, 7 sections: bookkeeping, coverage, outturns, headline tables, views by plan question, fixed-event regressions, SPF comparison). Results stay out of this file and the docs until the owner passes Gate 4. The midday benchmark-only tables (broken DFM, pre-fix) were moved out of `data/backtest/tables/` to `data/backtest/_tables_bench_only_broken_dfm_20261118T1152/` so that the Gate 4 path holds only the final run's tables. Results stay under `data/backtest/` until Gate 4. |
-| 5 Live registry | Not started |
+| 5 Live registry | **Built and trialled; at HUMAN GATE 5 (2026-11-19).** `ffcast registry-init / registry-run / registry-verify` (`src/ffcast/registry/`, `docs/registry.md`): data snapshot per origin, two information sets (`realtime` = backtest rule, `live` = everything public at the run), salted commitments, manifest, hash-chained ledger, time-stamp placeholder, verify and byte-for-byte rerun. 32 registry tests incl. 17 tamper cases; 100 tests in all (registry tests force the offline time-stamp placeholder). Trial run for origin 2026-10-26 in a scratch folder: sealed, verified, rerun identical, and its `realtime` rows identical to the backtest store's for that origin (18,720 of 18,720) (`docs/registry.md`, Trial run). `PREREGISTRATION.md` is a DRAFT. **Switched on 2026-11-19 by the owner's instruction** (`registry.enabled: true`, real time-stamping, scheduled task registered, committed locally, not pushed); **no ledger entry exists and none can until the owner approves the pre-registration text and `ffcast registry-init` is run.** |
 
 ## Decisions taken by the owner so far (2026-11-17)
 
@@ -106,6 +106,19 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   expenditure), released on about the 28th of the second month after the quarter.
 
 ## Decisions taken by the agent (owner may overturn)
+
+- Phase 5 (2026-11-19), all in `docs/registry.md` or marked PROPOSED in `PREREGISTRATION.md`:
+  two information sets per run instead of one; `live` targets are the national `latest`
+  series, joined to the vintage history by rescaling at the first national period; the
+  registry's snapshot goes under `registry/`, never into `data/normalised`; ledger line =
+  hash of the private manifest, manifest holds salted commitments (the salt also covers the
+  status file); `combo_fm` is formed at scoring, not stored; a run refuses to seal an incomplete
+  snapshot without an explicit flag; downloads are retried three times (this also changes
+  `ffcast data`, behaviour on success unchanged); `registry.enabled` and the time-stamping mode
+  are excluded from the design hash; amendments go into `PREREGISTRATION_AMENDMENTS.md`, whose
+  hash enters every later manifest; three small extensions of backtest code for reuse
+  (`fm_request` extracted, `stage3` takes a manifest, a `live` series id), backtest tests
+  unchanged and passing.
 
 - TimesFM 3.0 (2026-11-19, taken after the Gate 4 results had been seen; the owner asked only
   for the model to be included): (a) it runs univariate and multivariate, as Chronos-2 and
@@ -202,6 +215,92 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   has been uploaded.
 
 ## Blocked or needing the owner
+
+- **HUMAN GATE 5, state at the end of 2026-11-19. ONE THING IS PENDING: the owner's approval of
+  `PREREGISTRATION.md`** (the owner reads it tonight; a copy was sent to them). Until
+  `ffcast registry-init` has hashed the approved text into ledger line 0 (the freeze), no live
+  run can happen: the scheduled job finds nothing due. Done on the owner's instruction:
+  - Canadian headline CPI in the primary `live` mode now comes from StatCan vector 41690973
+    (identical to the Bank of Canada mirror on all 382 common months; history from 1914, so no
+    join to OECD history is needed for it any more). The pseudo-vintage base of the backtest
+    rule stays `valet:V41690973` and the pipeline downloads it separately; the backtest cache
+    keys of that target are unchanged (checked). The DBnomics switch is not made.
+  - `registry.enabled: true`, `registry.opentimestamps: ots`.
+  - Scheduled task "foundation-forecast registry" registered (daily 18:00, start when
+    available); see `docs/registry.md`.
+  - Phase 5 committed locally. **Not pushed.** Consequences until the owner pushes or says to:
+    the GitHub ledger workflow does not exist on the remote, and the job will not push a ledger
+    line while other local commits are ahead (it logs "NOT PUSHED ... the owner pushes").
+  Open besides the text: the backup (owner sets up rclone and the restic password tonight or
+  tomorrow; then `scripts/registry_backup.ps1`).
+  **DBnomics timeliness (owner's question):** unknown. DBnomics indexes the provider daily, and
+  its copy of table 36-10-0431 was last changed on 2026-09-30, 33 days after the release of
+  2026-08-28; that is one observation and an upper bound, not a measured lag. It matters only
+  for the `realtime` control mode of Canadian GDP and consumption (if the mirror is stale beyond
+  130 days the rule falls back to OECD editions and records it). First real test: the Q3
+  release at the end of November against the 2026-12-25 origin. If the mirror proves late, the
+  direct StatCan file (already downloaded at every run) becomes the source by amendment.
+  After the owner approves the text: `uv run ffcast registry-init`, commit nothing else, and
+  the first origin is 2026-11-25 (the job runs it at 18:00 that day).
+- **HUMAN GATE 5, further answers (2026-11-19, later):** item 3: **the ledger lives in this
+  repository with its own workflow, and needs a fallback** because scheduled GitHub workflows
+  are unreliable in the owner's experience. Built, not switched on: the local job
+  `scripts/registry_job.ps1` (daily start, acts only when an origin is due, retries by
+  construction, pushes the ledger file only), the public check `scripts/check_ledger.py`, and
+  `.github/workflows/ledger.yml` (chain and append-only on push; presence check on eight days a
+  month; opens an issue on failure); `ffcast registry-status`. Layers and what remains a single
+  point of failure are in `docs/registry.md`. Item 2 was explained again to the owner (the two
+  switches are plumbing, not a move to OECD data; under the primary `live` mode every Canadian
+  target already comes from Statistics Canada except headline CPI, which comes from the Bank of
+  Canada's mirror of the same StatCan vector). **Still open:** approval of the pre-registration
+  text; item 2; the owner's go-ahead to commit, enable and register the task; rclone and the
+  restic password for the backup.
+- **HUMAN GATE 5, owner's answers of 2026-11-19 (evening):** (1) **`live`, everything public
+  at the run, is the primary mode**; the inconsistency with the backtest is accepted, and doing
+  worse than the backtest is then the stronger signal; `realtime` stays as the like-for-like
+  control. Draft updated (sections 3 and 9). (4) **Real OpenTimestamps stamping approved**;
+  implemented through the client's library (the command-line client fails on Windows), tested
+  once on the trial entry's hash, accepted by three calendars. (5) **Schedule option C and the
+  restic backup to OneDrive approved** as recommended; neither is set up yet (the job script
+  waits for the answer on item 3, the backup for the owner's rclone login and password).
+  **Still open:** approval of the pre-registration text as a whole (the owner asked when the
+  freeze is: it is the moment `ffcast registry-init` hashes the text into ledger line 0, which
+  must come before the first live run, so in practice just before the first origin; the config
+  and the text can change freely until then and only by amendment after); item 2 (source
+  switches; proposal: neither before the freeze); item 3 (where the public ledger file lives and
+  who pushes it; the owner asked for an explanation).
+- **HUMAN GATE 5 (reached 2026-11-19).** The owner approves, in this order (PLAN.md as revised
+  by the owner): the pre-registration text; creation of any remote repository (public);
+  enabling the schedule. For decision, with the agent's proposal in each case:
+  1. `PREREGISTRATION.md` (draft). Its PROPOSED items: `realtime` as the primary mode for Q5 and
+     `live` alongside (the owner asked on 2026-11-19 whether the backtest rule yields incoherent
+     information sets; answer in `docs/backtest.md`, Not covered: no unknown value, but
+     multivariate panels mix vintage ages, while `live` is coherent as of the run; this bears on
+     which mode is primary); run time 18:00 America/Toronto; treatment of late runs; sealing
+     without a source that is down all day; `live` outturns from the registry's own monthly
+     snapshots; first scoring after 12 origins with outturns, then at most once every 12.
+  2. Whether the two planned Statistics Canada source switches happen before the freeze (they
+     change sources the text names): Canadian headline CPI from the Bank of Canada's Valet
+     mirror to StatCan vector 41690973 (identical values, verified), and GDP/consumption
+     vintages from the DBnomics mirror to direct parsing of 36-10-0431 (feasible since StatCan
+     fixed bulk downloads; identity still to be verified). The second changes backtest cache
+     keys for two targets and would require recomputing them; the retired TimesFM 3.0 would not
+     be rerun (`docs/backtest.md`, Deviations 7). The CPI switch cannot be done for the live
+     source alone: the pseudo-vintage base `valet:V41690973` is downloaded only because it is
+     the `latest` source, so base and live source must move together, which changes that
+     target's cache key and forces its recompute too. Agent's proposal: neither switch before
+     the freeze. The text then names the Valet mirror (identical values to the StatCan vector)
+     and the DBnomics mirror, as the backtest used them; a later switch would be an amendment.
+  3. Where the public ledger lives (this public repository under `ledger/`, or a separate
+     ledger-only repository) and whether the scheduled job pushes it or the owner does.
+  4. Real OpenTimestamps stamping (sends each ledger line's hash, and nothing else, to public
+     calendar servers; needs the `opentimestamps-client` package; never run so far).
+  5. Schedule: options A, B, C in `docs/registry.md`; proposal C (Windows Task Scheduler here
+     plus a monthly reminder). Backup: restic to OneDrive as proposed there; needs the owner's
+     rclone login and password choice.
+  6. To switch on after approval: set `registry.enabled: true`, commit, `ffcast registry-init`,
+     then the first run. **The next origin is 2026-11-25**; if the text is approved and the
+     registry enabled before then, it can be the first live entry, otherwise 2026-12-25.
 
 - **Machine memory (cleared 2026-11-18, cause not identified):** earlier in the day Windows
   reported about 126.7 GB of a 131 GB commit limit in use while all processes together held

@@ -1,0 +1,58 @@
+# Public checks of the forecast ledger (ledger/ledger.jsonl). This workflow never makes a
+# forecast and never sees private data: the monthly run happens on the owner's machine, which
+# also pushes the new ledger line. The workflow is the independent check and the alarm.
+#
+#   on push / pull request touching the ledger: the hash chain is intact and the file only grew
+#     (the previous commit's version is an exact prefix of the new one);
+#   on a schedule after each origin day: the ledger holds a line for every origin that is due.
+#     If one is missing the job fails and opens an issue; GitHub notifies the owner of both.
+#
+# Scheduled workflows on GitHub can start late or not at all. That is why this is only the
+# alarm, why it is tried on several days, and why it is not the only one: the local job logs
+# its own failures and retries daily, and the owner has a calendar reminder on the origin day.
+# Until a ledger file exists the checks do nothing.
+name: Ledger check
+
+on:
+  push:
+    paths: ["ledger/**", "scripts/check_ledger.py", ".github/workflows/ledger.yml"]
+  pull_request:
+    paths: ["ledger/**", "scripts/check_ledger.py"]
+  schedule:
+    # 14:00 UTC, i.e. the morning after an 18:00 Toronto run. The origin is the 25th or the next
+    # business day (at most the 27th), so from the 27th to the 3rd a missing line is overdue.
+    - cron: "0 14 27-31 * *"
+    - cron: "0 14 1-3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2
+      - name: Chain and append-only
+        run: |
+          if git cat-file -e HEAD~1:ledger/ledger.jsonl 2>/dev/null; then
+            git show HEAD~1:ledger/ledger.jsonl > "$RUNNER_TEMP/previous.jsonl"
+          fi
+          python3 scripts/check_ledger.py ledger/ledger.jsonl --previous "$RUNNER_TEMP/previous.jsonl"
+      - name: A line for every origin that is due
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: python3 scripts/check_ledger.py ledger/ledger.jsonl --expect --grace 1
+      - name: Open an issue when the scheduled check fails
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Ledger check failed: a monthly entry is missing or the chain is broken"
+          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number')" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body "The scheduled ledger check failed on $(date -u +%F). See the run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. No forecast data is involved; this only means the public ledger has no line for an origin that is due, or that its hash chain does not verify."
+          fi

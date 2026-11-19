@@ -728,30 +728,7 @@ def stage1(
             part = per_origin[i : i + chunk]
             tasks = [t for _, ts in part for t in ts]
             wdir, digest = weights[m]
-            settings = model_settings(cfg, m)
-            sizes = (
-                [
-                    (wdir / f).stat().st_size
-                    for f in json.loads((wdir / "MANIFEST.sha256.json").read_text())["files"]
-                    if (wdir / f).exists()
-                ]
-                if (wdir / "MANIFEST.sha256.json").exists()
-                else []
-            )
-            largest_mb = max(sizes, default=0) // (1 << 20)
-            settings = {
-                **settings,
-                "min_free_commit_mb": settings.get("min_free_commit_mb", 2 * largest_mb + 600),
-            }
-            req = {
-                "model": fms[m].hf_id,
-                "env": fms[m].env,
-                "weights_dir": str(wdir),
-                "weights_digest": digest,
-                "settings": settings,
-                "tasks": tasks,
-                "origins": [o for o, _ in part],
-            }
+            req = fm_request(cfg, m, wdir, digest, tasks, [o for o, _ in part])
             name = f"{m}__{part[0][0]}__{part[-1][0]}.json"
             (workdir / "requests" / name).write_text(json.dumps(req), encoding="utf-8")
             n_req += 1
@@ -765,12 +742,51 @@ def stage1(
     return report
 
 
+def fm_request(
+    cfg: Config, model: str, wdir: Path, digest: str, tasks: list[dict], origins: list[str]
+) -> dict:
+    """One worker request (see workers/_protocol.md), with the memory pre-flight threshold
+    derived from the largest weight file."""
+    fm = cfg.foundation_models()[model]
+    settings = model_settings(cfg, model)
+    mpath = wdir / "MANIFEST.sha256.json"
+    sizes = (
+        [
+            (wdir / f).stat().st_size
+            for f in json.loads(mpath.read_text())["files"]
+            if (wdir / f).exists()
+        ]
+        if mpath.exists()
+        else []
+    )
+    largest_mb = max(sizes, default=0) // (1 << 20)
+    settings = {
+        **settings,
+        "min_free_commit_mb": settings.get("min_free_commit_mb", 2 * largest_mb + 600),
+    }
+    return {
+        "model": fm.hf_id,
+        "env": fm.env,
+        "weights_dir": str(wdir),
+        "weights_digest": digest,
+        "settings": settings,
+        "tasks": tasks,
+        "origins": origins,
+    }
+
+
 # ------------------------------------------------------------------ stage 3
 
 
-def stage3(workdir: Path, *, cfg: Config | None = None, root: Path = BACKTEST_ROOT) -> dict:
+def stage3(
+    workdir: Path,
+    *,
+    cfg: Config | None = None,
+    root: Path = BACKTEST_ROOT,
+    manifest: dict | None = None,
+) -> dict:
     cfg = cfg or load_config()
-    manifest = data_manifest()
+    manifest = data_manifest() if manifest is None else manifest
     qs = tuple(cfg.scoring["quantiles"])
     rule = validity_rule(cfg)
     meta_path = workdir / "task_meta.json"

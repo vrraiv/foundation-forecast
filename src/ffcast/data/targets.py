@@ -35,6 +35,10 @@ def series_id_for(spec: dict, econ: str, freq: str, target: str) -> str:
         return _STATCAN_RT_TO_DBNOMICS[(spec["table"], target)]
     if src == "pseudo":
         return f"pseudo:{spec['base']}"
+    if src == "live":
+        # registry only (ffcast.registry.live): the national `latest` series joined to the
+        # vintage history; never present in the backtest data
+        return f"live:{econ}.{target}"
     raise ValueError(f"unknown vintage source {src!r}")
 
 

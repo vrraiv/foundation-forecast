@@ -78,11 +78,12 @@ targets:
       # all other months only for Nov 2025 to Nov 2026 (14th-22nd). Earlier years for the other
       # months are NOT verified; the OECD-edition fallback is the robustness variant.
       vintages: {source: pseudo, base: "valet:V41690973", months_after_period: 1, late_months: {1: 2}, fallback: {source: oecd, measure: CP, unit: IX, activity: _Z}}
-      # Latest and pseudo base stay on Valet (the Bank's mirror of StatCan v41690973) until the
-      # first full backtest has finished: switching the base to statcan:18100004:v41690973 changes
-      # this target's cache key and is planned as a recorded source change afterwards (owner
-      # preference 2026-11-18: StatCan as the source whenever feasible).
-      latest: {source: valet, series: V41690973}
+      # The pseudo-vintage base stays on Valet (the Bank of Canada's mirror of StatCan
+      # v41690973): it is part of this target's backtest cache key, and the values are identical.
+      # The live source is StatCan itself (owner decision 2026-11-19, for the registry's primary
+      # `live` mode only; `latest` is in no cache key, so no backtest result is touched). The
+      # data pipeline downloads the Valet base separately for the backtest rule.
+      latest: {source: statcan_wds, table: "18100004", vector: 41690973}
       transform: log_diff
       exclude_from_q1: true
     cpi_core:
@@ -392,4 +393,11 @@ scoring:
 
 registry:
   first_scoring_min_origins: 12
-  opentimestamps: stub      # real stamping only after Gate 5
+  # Time-stamping of ledger lines: `ots` obtains an OpenTimestamps proof from public calendar
+  # servers (owner approval 2026-11-19; a salted digest is all that is sent); `stub` writes a
+  # placeholder and contacts nobody.
+  opentimestamps: ots
+  # Live runs and the real ledger are refused while this is false. Switched on by the owner's
+  # instruction on 2026-11-19. Nothing runs until the pre-registration text has been approved
+  # and hashed into ledger line 0 with `ffcast registry-init`, which is the freeze.
+  enabled: true

@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +14,7 @@ import requests
 
 DATA_ROOT = Path(__file__).resolve().parents[3] / "data"
 RAW_ROOT = DATA_ROOT / "raw"
+RETRY_WAITS = (10, 40)  # seconds before the second and third attempt of a download
 USER_AGENT = "foundation-forecast-research/0.1 (public-data research client)"
 
 
@@ -46,6 +48,7 @@ class RawStore:
     def __init__(self, root: Path = RAW_ROOT, today: dt.date | None = None) -> None:
         self.root = Path(root)
         self.today = today or dt.datetime.now(dt.UTC).date()
+        self.failures: list[str] = []  # downloads that failed after every retry, this session
 
     def dir_for(self, source: str, day: dt.date | None = None) -> Path:
         d = self.root / source / (day or self.today).isoformat()
@@ -105,7 +108,9 @@ class RawStore:
     ) -> RawFile:
         """GET `url` and store the body unmodified. If the same name exists for today and
         `reuse`, return the stored file without a network call (idempotent daily runs).
-        Non-200 responses are stored too (with suffix .error) and raise."""
+        Non-200 responses are stored too (with suffix .error) and raise. Network errors and
+        HTTP 429/5xx are retried (three attempts, waiting 10 and 40 seconds); a download that
+        still fails raises DownloadError and is listed in `self.failures`."""
         d = self.dir_for(source)
         if reuse and (d / name).exists():
             m = self._load_manifest(source)["files"].get(name)
@@ -121,12 +126,29 @@ class RawStore:
                     200,
                 )
         h = {"User-Agent": USER_AGENT, **(headers or {})}
-        resp = requests.get(url, params=params, headers=h, timeout=timeout)
-        full_url = resp.url
-        if resp.status_code != 200:
+        waits = RETRY_WAITS
+        for attempt in range(len(waits) + 1):
+            last = attempt == len(waits)
+            try:
+                resp = requests.get(url, params=params, headers=h, timeout=timeout)
+            except requests.RequestException as e:
+                if not last:
+                    time.sleep(waits[attempt])
+                    continue
+                msg = f"{source}/{name}: {type(e).__name__} from {url} after {attempt + 1} attempts"
+                self.failures.append(msg)
+                raise DownloadError(msg) from e
+            full_url = resp.url
+            if resp.status_code == 200:
+                return self.put(source, name, resp.content, full_url, 200)
+            if (resp.status_code == 429 or resp.status_code >= 500) and not last:
+                time.sleep(waits[attempt])
+                continue
             self.put(source, name + ".error", resp.content, full_url, resp.status_code)
-            raise DownloadError(f"{source}/{name}: HTTP {resp.status_code} from {full_url}")
-        return self.put(source, name, resp.content, full_url, 200)
+            msg = f"{source}/{name}: HTTP {resp.status_code} from {full_url}"
+            self.failures.append(msg)
+            raise DownloadError(msg)
+        raise AssertionError("unreachable")
 
     def register_manual(self, source: str, path: Path, note: str) -> RawFile:
         """Hash and record a file the owner downloaded by hand (e.g. a StatCan zip fetched in a

@@ -338,3 +338,27 @@ only, no interpretation; the file stays under `data/`.
 Canadian core CPI has pseudo-vintages only (unrevised by convention), so it has no `revised`
 input mode and is excluded from Q1. Canada has no public individual-level survey, so the survey
 comparison is euro area only (PLAN section 5).
+
+**Coherence of the real-time information sets (checked 2026-11-19 at the owner's question).**
+No information set contains a value that was unpublished at its origin, and each series taken
+alone is one published vintage. Across series the vintages differ in age, because the sources
+snapshot at different times. Age of the vintage used, in days before the origin, over the 2015+
+origins: OECD editions 24 to 25 by the conservative dating (median; up to 85 at the 90th
+percentile where an edition is missing; the content evidence of `docs/data_quality.md` section 4
+suggests an edition is cut in the first half of its month, some weeks before the date it is
+given, but no publication date is recorded); ECB real-time database median 23, 48 at the 90th
+percentile (eight snapshots a year); the Statistics Canada real-time table 22 to 90 (quarterly
+releases); pseudo-vintage targets 1; daily market series (yields, exchange rates) 1 to 4, the
+last business day; the Bank of Canada commodity index 25 to 27. The policy-rate series are
+recorded at their dates of change and carried forward, so their vintage date is the last change
+(up to 1,258 days back) and says nothing about staleness. A multivariate panel is therefore not the complete public record of any single date:
+it is what those databases showed on the origin day, with the OECD edition one month delayed.
+Univariate inputs are unaffected (one series, one real vintage). What a multivariate panel can
+contain is one series updated or revised more recently than another; national-accounts pairs
+are not split this way (GDP and consumption come from the same table for Canada and the same
+ECB snapshot for the euro area). Whether cross-source revision mismatches (for example a
+benchmark revision present in the ECB snapshot but not yet in the OECD edition used for a
+conditioning series) affect the multivariate results has not been measured. Separately, the
+pseudo-vintage targets (Canadian CPI and CPI-XFET, euro-area core HICP) are today's values
+re-dated, so for a revised series they are not a real past information set; that is why they are
+excluded from Q1.

@@ -46,6 +46,26 @@ def _hac_ols(y: np.ndarray, x: np.ndarray, lag: int) -> tuple[float, float, floa
     return float(beta[1]), float(np.sqrt(max(V[1, 1], 0.0))), float(beta[0]), n
 
 
+def _sequences(gp: pd.DataFrame, outturn: str) -> list[tuple[int, float, float, object]]:
+    """Fixed-event revisions and errors for one target period: rows of successive origins,
+    revision f_k - f_{k-1} between consecutive origins, error from each row's OWN outturn
+    (rows whose outturn is missing, for instance because their series id has no outturn, give
+    no error row; before 2026-11-18 the first row's outturn was used for every row, which made
+    the whole error vector NaN whenever that row lacked one). Returns (k, revision, error,
+    origin) tuples."""
+    gp = gp.drop_duplicates("origin").sort_values("origin")
+    if len(gp) < 2 or gp[outturn].isna().all():
+        return []
+    f = gp["point"].to_numpy(dtype=float)
+    y = gp[outturn].to_numpy(dtype=float)
+    org = gp["origin"].to_numpy()
+    return [
+        (k, f[k] - f[k - 1], y[k] - f[k], org[k])
+        for k in range(1, len(gp))
+        if np.isfinite(y[k]) and np.isfinite(f[k]) and np.isfinite(f[k - 1])
+    ]
+
+
 def fixed_event_table(
     cfg: Config | None = None, root: Path = BACKTEST_ROOT, outturn: str = "first_release"
 ) -> pd.DataFrame:
@@ -60,20 +80,15 @@ def fixed_event_table(
     for key, g in tr.groupby(keys):
         seqs = []
         for period, gp in g.groupby("target_period"):
-            gp = gp.drop_duplicates("origin").sort_values("origin")
-            if len(gp) < 2 or gp[outturn].isna().all():
-                continue
-            f = gp["point"].to_numpy(dtype=float)
-            y = float(gp[outturn].iloc[0])
-            steps = gp["step"].to_numpy()
-            for k in range(1, len(gp)):
+            steps = gp.drop_duplicates("origin").sort_values("origin")["step"].to_numpy()
+            for k, rev, err, origin in _sequences(gp, outturn):
                 seqs.append(
                     {
                         "period": period,
-                        "origin": gp["origin"].iloc[k],
+                        "origin": origin,
                         "step": int(steps[k]),
-                        "revision": f[k] - f[k - 1],
-                        "error": y - f[k],
+                        "revision": rev,
+                        "error": err,
                     }
                 )
         if len(seqs) < 20:
@@ -101,13 +116,7 @@ def fixed_event_table(
         for _target, gt in g.groupby("target"):
             seqs = []
             for _period, gp in gt.groupby("target_period"):
-                gp = gp.drop_duplicates("origin").sort_values("origin")
-                if len(gp) < 2 or gp[outturn].isna().all():
-                    continue
-                f = gp["point"].to_numpy(dtype=float)
-                y = float(gp[outturn].iloc[0])
-                for k in range(1, len(gp)):
-                    seqs.append((f[k] - f[k - 1], y - f[k]))
+                seqs.extend((rev, err) for _k, rev, err, _o in _sequences(gp, outturn))
             if len(seqs) < 20:
                 continue
             a = np.asarray(seqs)

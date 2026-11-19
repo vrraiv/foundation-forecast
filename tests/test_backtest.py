@@ -15,7 +15,7 @@ from ffcast.data.store import snapshots_to_changelog
 from ffcast.eval import backtest as bt
 from ffcast.eval import scoring
 from ffcast.eval.backtest import cache_key, invalid_reason, panels_at_origin
-from ffcast.eval.bias import _hac_ols
+from ffcast.eval.bias import _hac_ols, _sequences
 from ffcast.eval.outturns import OutturnBuilder
 from ffcast.models.runner import make_task
 
@@ -188,6 +188,25 @@ def test_hac_ols_degenerate_regressor_gives_nan_not_error():
     b, se, a, n = _hac_ols(y, np.zeros(5), 3)
     assert np.isnan(b) and np.isnan(se) and n == 5
     assert a == pytest.approx(y.mean())
+
+
+def test_fixed_event_sequences_use_each_rows_own_outturn():
+    import datetime as dt
+
+    gp = pd.DataFrame(
+        {
+            "origin": [dt.date(2020, 1, 25), dt.date(2020, 2, 25), dt.date(2020, 3, 25)],
+            "point": [1.0, 1.5, 1.2],
+            "first_release": [np.nan, 2.0, 2.0],  # first row's series has no outturn
+        }
+    )
+    seqs = _sequences(gp, "first_release")
+    assert [(k, round(r, 6), round(e, 6)) for k, r, e, _ in seqs] == [
+        (1, 0.5, 0.5),
+        (2, -0.3, 0.8),
+    ]
+    assert _sequences(gp.assign(first_release=np.nan), "first_release") == []
+    assert _sequences(gp.iloc[:1], "first_release") == []
 
 
 def test_hac_ols_recovers_slope():

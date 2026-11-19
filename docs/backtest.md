@@ -216,8 +216,12 @@ against outturns.
   2024-06-25 for Chronos-2 and Moirai (230 tasks); the other listed cells were the 1,704 keyless
   skips from the first run, re-keyed with no model call. Model store afterwards: every model
   row ok, no keyless row. Step 4 (`--verify 5`) started 19:02 with step 5 (read-only) alongside.
-- 2026-11-18 19:09 step 4 passed: origins 2002-09-25, 2012-01-25, 2017-06-26, 2018-12-25 and
-  2022-10-25 recomputed from scratch, identical to the store, result in `verify_20261118T190908.json`.
+- 2026-11-18 19:09 step 4 passed (benchmarks only; `--verify` runs no model): origins 2002-09-25,
+  2012-01-25, 2017-06-26, 2018-12-25 and 2022-10-25 recomputed from scratch, identical to the
+  store (`verify_20261118T190908.json`). Since none of the five fell among the 41 origins
+  recomputed after the reboot, 2024-10-25 and 2026-03-25 were verified by hand too, identical
+  (`verify_20261118T191840.json`). The midday benchmark-only tables (pre-fix DFM) were moved to
+  `_tables_bench_only_broken_dfm_20261118T1152/` so `tables/` holds only the final run's output.
   Step 5 on the final store: unchanged from the 18:12 run (zero differing AR/BVAR/naive rows on
   all 310 origins). Steps 6 and 7 wait for the owner's guard-scope and DFM-coverage decisions.
 

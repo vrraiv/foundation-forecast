@@ -204,7 +204,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   rules from the owner: Gate 4 is a plausibility check only, no design change at this gate, no
   tuning in response to results at Gate 4 or after. **Disclosure approved by the owner
   (2026-11-18): everything in `SUMMARY.md`.** A verbatim copy with Gate 4 reading notes is
-  `docs/results_backtest_2026-11-18.md` (SHA-256 of the summary `672d7c08331e8adba9eabfbff152faf6184c266d3493df980ce2e25cd9fe1209`). The forecasts and
+  `docs/results_backtest_2026-11-18.md` (SHA-256 of the summary `cd9ad7875bc1dc98cd6e22fa76188be678393010ba1aec47d47970361cbedcef`). The forecasts and
   the CSV tables stay private under `data/`.
 - **Design freeze record (owner decision 2026-11-18):** kept as PLAN.md plans it, in
   `PREREGISTRATION.md` at Phase 5; the freeze is not redated to Gate 0. Verification done for

@@ -2,7 +2,7 @@
 
 Verbatim copy of `data/backtest/tables/SUMMARY.md` as generated on 2026-11-19T03:08 UTC by
 `ffcast.eval.summary` from the scored tables of the first full backtest (310 origins, 2001-01 to
-2026-10, both input modes, every model). SHA-256 of the copied file: `672d7c08331e8adba9eabfbff152faf6184c266d3493df980ce2e25cd9fe1209`. Disclosure of
+2026-10, both input modes, every model). SHA-256 of the file as stored (bytes): `cd9ad7875bc1dc98cd6e22fa76188be678393010ba1aec47d47970361cbedcef`. Disclosure of
 everything in the summary was approved by the owner on 2026-11-18 after HUMAN GATE 4, which was a
 plausibility check only: the owner reviewed the tables, asked for three cells to be decomposed, and
 made no design change. The underlying forecasts and the CSV tables stay private under `data/`.

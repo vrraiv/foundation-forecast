@@ -1,6 +1,6 @@
 # STATUS
 
-Last updated: 2026-11-18 night (Phase 4 done: 310 origins, all models, scored, summary written, Gate 4 passed as a plausibility check; StatCan WDS route for Canadian latest data; DFM defect fixed). Repository: foundation-forecast (public GitHub
+Last updated: 2026-11-19 afternoon (TimesFM 3.0 added by owner decision, backtested, scored, its tables published in `docs/results_backtest_2026-11-19.md`, then retired by owner decision: five foundation models go forward. Owner decisions the same day: repository visibility, licences, Canadian retail live series = StatCan v1446870183, `combo_fm` unchanged. **Nothing is waiting on the owner; Phase 5 can start.** Cloud backup is a to-do. Phase 4 done 2026-11-18: 310 origins, all models, scored, Gate 4 passed as a plausibility check). Repository: foundation-forecast (public GitHub
 remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## Where we are
@@ -10,8 +10,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 | 0 Feasibility | **Done.** Gate 0 passed 2026-11-17 (see below). |
 | 1 Repository and environment | **Done.** `uv sync --extra dev` + `uv run just check` passes from a fresh clone (ruff + 4 tests). Package `ffcast` with `data`, `models`, `bench`, `eval`, `registry` subpackages; `configs/default.yaml` + pydantic loader; CLI stubs. |
 | 2 Vintage data layer | **Done.** `ffcast data` downloads 28 series (OECD editions, ECB RTD change logs, DBnomics mirror of StatCan 36-10-0431, Eurostat and Valet latest) into `data/raw/<source>/<date>/` with SHA-256 manifests and normalises them into one change-log table (`as_of`, `revised_view`, `first_appearance`). RTD rebuild matches all 122 ECB bulk vintage files. 25 tests pass incl. hypothesis property tests and 6 revision spot checks on real data (real-data tests skip without data). `ffcast quality` writes `docs/data_quality.md`. |
-| 3 Models and benchmarks | **Done.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and all five foundation models (Chronos-2, TimesFM 2.5, TiRex, TiRex-2, Moirai 2.0; 12 model-variant combinations) pass every sane-magnitude and step-1 alignment check on 11 targets (132 checks); step 1 refers to the same target period across models; reruns byte-identical. Realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. Canadian core CPI blocked (no public scripted source). |
-| 4 Backtest and scoring | **Done. Results published: `docs/results_backtest_2026-11-18.md`. HUMAN GATE 4 passed 2026-11-18 (plausibility check only; the owner reviewed the tables visually, asked for three decompositions, found the tables plausible, and made no design change).** Harness, forecast store, outturns, scoring tables, Q2 splits, Q4 fixed-event regressions and the ECB SPF comparison are built and tested (`docs/backtest.md`); rules fixed in config and committed before the first run. Full run (`ffcast backtest --window all`: 311 origins 2001-01 to 2026-11, both input modes, all models) started 2026-11-18 07:52 local. SPF run and `ffcast score` follow when it ends. A benchmark-only scoring pass (2026-11-18 midday) found the dynamic factor model producing numerically broken forecasts (log-likelihood about -1e54, values up to 1e97) at about 60 origin-target cells, contaminating `combo_bench`. Diagnosed and fixed the same day on numerical validity alone (`em_initialization: false` repairs 52 of 52; validity guard for every model; `docs/backtest.md` Deviations); every benchmark cell is recomputed under `BENCH_CODE_VERSION` 2 with the foundation-model keys unchanged. **State at 15:28 local:** the harness stopped both jobs for machine-wide memory pressure. The model stage had finished (130 of 130 worker files, every worker ok, all five models over 310 origins) but its merge into the store had not run; the benchmark recompute had covered 269 of 310 origins. On those 269 the AR/BVAR/naive values are identical to the first run row for row, the DFM breakdown is gone (47 origins with absurd values -> 0; 53 formerly failing cells now estimate, none the other way; 169 pre-existing input-data failures remain and are recorded), and the validity guard caught 11 multivariate BVAR cells at the 2020-08..11 origins (`docs/backtest.md`, Deviations 2-3 and Run log). Stage 3 now merges one model at a time, and the cache works per (origin, target, input-mode) cell with keyed skips, which was needed for the core CPI second pass to run at all (`docs/backtest.md` Deviations 5). **Restarted 2026-11-18 evening after the owner's reboot, one job at a time:** stage 3 merged all 310 origins into the model store (74,670 model tasks ok, 0 errors, guard tripped on no model response); the benchmark recompute then finished the remaining 41 origins and re-keyed every skipped cell (50 min, 4 processes, nothing re-estimated elsewhere). Against the backup, all 310 origins now show AR/BVAR/naive identical row for row, DFM 57 cells repaired and none broken, 169 input-data errors unchanged, 11 BVAR guard trips. The second model pass ran 18:12-18:59: 4,570 model tasks (core CPI, real-time input, every model at all 310 origins; the two re-keyed trial origins of Chronos-2 and Moirai), all ok, 0 errors, nothing else recomputed; the model store now holds every model with status ok at every estimated cell and 1,704 keyed skips. Benchmark verify passed (`--verify` recomputes benchmarks only, no model: 5 random origins plus, by hand, two of the 41 post-reboot origins, 2024-10 and 2026-03, all identical to the store; recorded as `data/backtest/verify_<stamp>.json`, which the summary reads) and the final store comparison is unchanged (classical benchmarks identical to the backup on all 310 origins). **No job is running.** The owner took both decisions on the evening of 2026-11-18 (guard kept as configured; DFM coverage rule unchanged), so nothing was recomputed. `ffcast score` wrote the four main tables and then failed in the fixed-event regression (two scoring-code defects, fixed with tests, `docs/backtest.md` Deviations 6; no forecast or rule touched); `ffcast spf` ran clean (46 rounds, every worker ok); the bias table and the summary were regenerated at 22:17. **Gate 4 document: `data/backtest/tables/SUMMARY.md`** (private, 7 sections: bookkeeping, coverage, outturns, headline tables, views by plan question, fixed-event regressions, SPF comparison). Results stay out of this file and the docs until the owner passes Gate 4. The midday benchmark-only tables (broken DFM, pre-fix) were moved out of `data/backtest/tables/` to `data/backtest/_tables_bench_only_broken_dfm_20261118T1152/` so that the Gate 4 path holds only the final run's tables. Results stay under `data/backtest/` until Gate 4. |
+| 3 Models and benchmarks | **Done.** Three-stage smoke test at origin 2024-06-25 (`ffcast smoke`): all benchmarks and all five foundation models of the time (Chronos-2, TimesFM 2.5, TiRex, TiRex-2, Moirai 2.0; 12 model-variant combinations; TimesFM 3.0 was added on 2026-11-19 and smoke-tested separately, 21 tasks, see `docs/model_cards.md`) pass every sane-magnitude and step-1 alignment check on 11 targets (132 checks); step 1 refers to the same target period across models; reruns byte-identical. Realised conditioning sets in `data/smoke/<origin>/panels.json`; runtimes in `docs/model_cards.md`. Canadian core CPI blocked (no public scripted source). |
+| 4 Backtest and scoring | **Done. Results published: `docs/results_backtest_2026-11-18.md`. HUMAN GATE 4 passed 2026-11-18 (plausibility check only; the owner reviewed the tables visually, asked for three decompositions, found the tables plausible, and made no design change).** Harness, forecast store, outturns, scoring tables, Q2 splits, Q4 fixed-event regressions and the ECB SPF comparison are built and tested (`docs/backtest.md`); rules fixed in config and committed before the first run. Full run (`ffcast backtest --window all`: 311 origins 2001-01 to 2026-11, both input modes, all models) started 2026-11-18 07:52 local. SPF run and `ffcast score` follow when it ends. A benchmark-only scoring pass (2026-11-18 midday) found the dynamic factor model producing numerically broken forecasts (log-likelihood about -1e54, values up to 1e97) at about 60 origin-target cells, contaminating `combo_bench`. Diagnosed and fixed the same day on numerical validity alone (`em_initialization: false` repairs 52 of 52; validity guard for every model; `docs/backtest.md` Deviations); every benchmark cell is recomputed under `BENCH_CODE_VERSION` 2 with the foundation-model keys unchanged. **State at 15:28 local:** the harness stopped both jobs for machine-wide memory pressure. The model stage had finished (130 of 130 worker files, every worker ok, all five models over 310 origins) but its merge into the store had not run; the benchmark recompute had covered 269 of 310 origins. On those 269 the AR/BVAR/naive values are identical to the first run row for row, the DFM breakdown is gone (47 origins with absurd values -> 0; 53 formerly failing cells now estimate, none the other way; 169 pre-existing input-data failures remain and are recorded), and the validity guard caught 11 multivariate BVAR cells at the 2020-08..11 origins (`docs/backtest.md`, Deviations 2-3 and Run log). Stage 3 now merges one model at a time, and the cache works per (origin, target, input-mode) cell with keyed skips, which was needed for the core CPI second pass to run at all (`docs/backtest.md` Deviations 5). **Restarted 2026-11-18 evening after the owner's reboot, one job at a time:** stage 3 merged all 310 origins into the model store (74,670 model tasks ok, 0 errors, guard tripped on no model response); the benchmark recompute then finished the remaining 41 origins and re-keyed every skipped cell (50 min, 4 processes, nothing re-estimated elsewhere). Against the backup, all 310 origins now show AR/BVAR/naive identical row for row, DFM 57 cells repaired and none broken, 169 input-data errors unchanged, 11 BVAR guard trips. The second model pass ran 18:12-18:59: 4,570 model tasks (core CPI, real-time input, every model at all 310 origins; the two re-keyed trial origins of Chronos-2 and Moirai), all ok, 0 errors, nothing else recomputed; the model store now holds every model with status ok at every estimated cell and 1,704 keyed skips. Benchmark verify passed (`--verify` recomputes benchmarks only, no model: 5 random origins plus, by hand, two of the 41 post-reboot origins, 2024-10 and 2026-03, all identical to the store; recorded as `data/backtest/verify_<stamp>.json`, which the summary reads) and the final store comparison is unchanged (classical benchmarks identical to the backup on all 310 origins). **No job is running.** The owner took both decisions on the evening of 2026-11-18 (guard kept as configured; DFM coverage rule unchanged), so nothing was recomputed. `ffcast score` wrote the four main tables and then failed in the fixed-event regression (two scoring-code defects, fixed with tests, `docs/backtest.md` Deviations 6; no forecast or rule touched); `ffcast spf` ran clean (46 rounds, every worker ok); the bias table and the summary were regenerated at 22:17. **Gate 4 document: the 18 Nov `SUMMARY.md`, since 2026-11-19 kept at `data/backtest/_backup_before_timesfm3_20261119/tables/SUMMARY.md` (hash verified equal to the published `cd9ad787...`); `data/backtest/tables/SUMMARY.md` now holds the 19 Nov version with TimesFM 3.0** (private, 7 sections: bookkeeping, coverage, outturns, headline tables, views by plan question, fixed-event regressions, SPF comparison). Results stay out of this file and the docs until the owner passes Gate 4. The midday benchmark-only tables (broken DFM, pre-fix) were moved out of `data/backtest/tables/` to `data/backtest/_tables_bench_only_broken_dfm_20261118T1152/` so that the Gate 4 path holds only the final run's tables. Results stay under `data/backtest/` until Gate 4. |
 | 5 Live registry | Not started |
 
 ## Decisions taken by the owner so far (2026-11-17)
@@ -68,14 +68,54 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   (community MCP servers, `cansim`, GitHub Actions runner with retries, 36 attempts) all 403; the
   owner's browser-identified client fails on 13 and 18 Nov too, so the User-Agent is not the
   explanation. **Resolved for latest data; vintage-source switches pending the run.**
-- Models: four planned plus TiRex-2; TimesFM 3.0 excluded. Owner reviewing Moirai and TiRex
-  licences. **Approved subject to licence review.**
-- Repository visibility and gate strictness: owner will revise PLAN.md gates. **Pending.**
+  **Update 2026-11-19:** Statistics Canada told the owner the 403 on bulk downloads was
+  unintended and has been fixed; the owner's plain `requests` call succeeds. Confirmed from this
+  machine with plain curl and with Python `requests` 2.34.2 (default headers), same results: the static table zip (`/n1/tbl/csv/18100256-eng.zip`) and the
+  WDS full-table link (`getFullTableDownloadCSV/36100431`) both answer; the SDMX data endpoint
+  still returns 403 with a Cloudflare challenge (four attempts here; the owner saw the same on another device). The project does not use SDMX. No source in the config has been changed: the manual-zip
+  fallback for CPI-XFET can be retired and direct parsing of 36-10-0431 is now feasible, both as
+  the recorded source changes already planned.
+- Models: four planned plus TiRex-2, plus TimesFM 3.0 from 2026-11-19. **Licence review by the
+  owner 2026-11-19: Moirai 2.0 (CC-BY-NC-4.0), TiRex (NXAI Community License), TiRex-2
+  (Apache-2.0) and TimesFM 3.0 (TimesFM Non-Commercial License v1.0) reviewed; the project's use
+  is non-commercial and covered.** **TimesFM 3.0 added by owner decision 2026-11-19**, after the
+  Gate 4 results had been seen: a recorded design change, not a response to any result
+  (`docs/backtest.md` Deviations 7). It runs univariate and multivariate as its own model
+  `timesfm3` in its own environment; `timesfm25` and every other stored forecast are untouched.
+  `combo_fm` keeps its five members until the owner decides otherwise. **Run, SPF and scoring
+  done 2026-11-19 11:58:** 310 origins, 22,410 tasks ok, 2 validity-guard trips; every other
+  model's forecasts, scores, calibration tables and SPF points identical to the backup; only the
+  model-confidence-set p-values move, because the model set changed. The regenerated
+  `data/backtest/tables/SUMMARY.md` (19 Nov, with `timesfm3`) is **private: the owner's
+  disclosure approval of 2026-11-18 covers the 18 Nov summary only**, which is preserved in
+  `data/backtest/_backup_before_timesfm3_20261119/tables/` and published unchanged in
+  `docs/results_backtest_2026-11-18.md`. **Owner decisions later on 2026-11-19: the 19 Nov tables
+  are disclosed (`docs/results_backtest_2026-11-19.md`, verbatim copy, SHA-256 `51f62eb0...`);
+  `combo_fm` keeps its original five members; TimesFM 3.0 is retired from all further work**
+  (use probably within the licence, which excludes "production deployment", but not clearly so,
+  and TimesFM 2.5 already represents the family). Retired means: `models.retired` in the config,
+  not run by default, never in the live registry or the pre-registration's model list; its pinned
+  entry, environment and stored results stay so the published tables remain reproducible.
+- Repository visibility and gate strictness: **owner decision 2026-11-19.** The owner revised PLAN.md
+  Gate 5 themselves (commit c53a6d5): a public repository, and even a deployed public site with
+  everything the project does, needs no prior authorisation. What the owner must clear first is
+  advertising the project on social media or in other public venues. The original gate text was
+  agent-generated and stricter than the owner intended.
 - OpenTimestamps stubbed in the dry run and no GPU use: **approved.**
 - Consumer spending: quarterly; StatCan table 36-10-0107 (household final consumption
   expenditure), released on about the 28th of the second month after the quarter.
 
 ## Decisions taken by the agent (owner may overturn)
+
+- TimesFM 3.0 (2026-11-19, taken after the Gate 4 results had been seen; the owner asked only
+  for the model to be included): (a) it runs univariate and multivariate, as Chronos-2 and
+  TiRex-2 do, because the model supports several variates; (b) in the multivariate variant all
+  variates enter as joint targets and variate 0 is returned, as for TiRex-2, not as past-only
+  covariates; (c) inference options are the package defaults (no symmetric averaging, no
+  z-normalisation, no positivity clamp), where TimesFM 2.5 runs with its flip-invariance and
+  normalisation flags on; (d) it is not a member of `combo_fm`. All fixed before its first
+  forecast. Dropping the multivariate variant only removes rows; changing (b) or (c) means
+  rerunning this model (about 1.7 hours).
 
 - Phase 2: every source is reduced to one change-log table (R/D rows dated by vintage), so
   `as_of` has a single semantics; full-snapshot sources are diffed into it with a 1e-9
@@ -84,7 +124,7 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   decision 2026-11-18; the `same_month_eve` dating used until then is a variant).
   Evidence: in 334 Canadian editions only edition 202104 contained the previous month's CPI
   (released 2021-04-21); unemployment for M-1 (released first Friday) is present in 109
-  editions. The conservative rule remains a config switch. Owner confirmation still pending.
+  editions. The conservative rule remains a config switch.
 - Phase 2: an edition that is empty or whose newest observation is more than 12 months old
   would be dropped as a broken vintage; none occurred in the downloaded data.
 - Phase 2: ECB "Replace" rows with an empty value are treated as deletes dated VALID_FROM.
@@ -147,6 +187,20 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 11. **TiRex-2 weights** changed on 2026-07-02 and files were re-uploaded 2026-10-06, so its
     Q2 boundary is ambiguous; its macro training-data exposure is a model-card tag only.
 
+## To do
+
+- **Cloud backup of the git-ignored work (owner request 2026-11-19).** Everything under `data/`
+  (about 5.8 GB: raw downloads with manifests, the forecast store, scoring tables, SPF results,
+  smoke outputs, worker requests and responses, model weights) and, from Phase 5, `registry/`
+  exists only on this machine. Set up an encrypted, deduplicating backup to the owner's OneDrive;
+  the owner suggests restic or a similar tool (restic reaches OneDrive through its rclone
+  backend). To settle when it is set up: what to exclude (`data/models/` weights are
+  re-downloadable at pinned revisions and verified by hash; virtual environments are rebuilt from
+  the lockfiles), where the repository password is kept, a schedule, and a restore test. Encrypt
+  on this machine before upload, since the store holds unpublished forecasts. This also covers
+  PLAN.md Phase 5 step 7 (backup of `registry/`). The owner sets up the OneDrive side; nothing
+  has been uploaded.
+
 ## Blocked or needing the owner
 
 - **Machine memory (cleared 2026-11-18, cause not identified):** earlier in the day Windows
@@ -179,9 +233,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 - **Restart (done, 2026-11-18 evening):** the owner rebooted (21 GB of 32 free afterwards, with
   another Claude session's job still running) and approved resuming one job at a time. Runbook
   all seven runbook steps (`docs/backtest.md`, Run log) completed by 22:17; nothing is running,
-  so the reboot below can happen whenever the other session's job has finished. Pending from the hardware check: the memory's XMP/D.O.C.P. profile is off after a
-  recent BIOS update (modules rated 3600 MHz running at 2133); enabling it needs a reboot, so it
-  waits for a gap between jobs. Not relevant to any result.
+  so the reboot below can happen whenever the other session's job has finished. (Hardware note closed 2026-11-19: the memory's XMP/D.O.C.P. profile is enabled again,
+  all four modules run at 3600 MT/s and Windows sees the full 32 GB.)
 - **Validity guard scope:** in the recomputed benchmarks the guard caught no DFM cell but 11
   multivariate BVAR cells at the 2020-08..11 origins (pandemic shock through the VAR; magnitudes
   stay in the private store). Owner to choose before scoring: keep the magnitude rule for every model (current
@@ -220,6 +273,20 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   parsing of 36-10-0431 (to be verified identical first). Retail: StatCan's Fisher volume index
   differs from the OECD volume index used for the vintages (definitional; owner to choose the live
   target definition for Phase 5).
+  **Finding 2026-11-19:** the OECD series is still published (live value for 2026-08) and is a
+  rebased copy of another StatCan series in the same table: 20-10-0067, retail trade [44-45],
+  "Retail sales at 2017 constant prices (Unchained Laspeyres Index)", vector v1446870183. Over the
+  116 common months (2017-01 to 2026-08) month-on-month log growth differs by at most 0.0001
+  (rounding) and the level ratio is constant (OECD rebases to 2015 = 100). The config's live
+  vector v1446870181 is the chained Fisher volume index, which is the series that differs. The
+  OECD labels the activity G47 "except motor vehicles" but the data match total retail including
+  motor vehicle dealers. The OECD dataflow states no source per series (methodology attribute
+  "National" only). Choosing v1446870183 as the live source would make the live target the same
+  definition as the backtest vintages. **Owner decision 2026-11-19: the live Canadian retail
+  series is StatCan v1446870183.** Config switched (`latest` is in no cache key, so nothing is
+  recomputed). The vector is in millions of 2017 dollars, the OECD vintages are an index
+  (2015 = 100): the target is scored in log differences, where the scale drops out, and any
+  level use in the live phase must rescale on the overlap.
 - Chrome extension was not connected in this session, so the agent could not run the
   browser test itself. Internet Archive downloads were denied by the session's permission
   classifier and were not retried.
@@ -231,8 +298,8 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   source. Valet STATIC_CPIXFET agrees with the file at every overlapping month and is the live
   cross-check. Live-phase updates: WDS vector 1675033092 (equal to the file at all 514 months),
   with the owner's zip as fallback when the API is challenged. No target is blocked any more.
-- Repository visibility: planning and probe docs are on a public remote; PLAN.md Gate 5
-  expects private code. Owner to decide before Phase 1.
+- Repository visibility: settled 2026-11-19 (see Decisions taken by the owner): public code and a
+  public site are allowed; only public promotion needs the owner's prior clearance.
 
 ## Environment facts
 

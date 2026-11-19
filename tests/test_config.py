@@ -21,6 +21,11 @@ def test_every_economy_has_six_targets() -> None:
 def test_models_are_pinned_by_revision() -> None:
     cfg = load_config()
     fms = cfg.foundation_models()
-    assert {"chronos2", "timesfm25", "tirex", "tirex2", "moirai2"} <= set(fms)
+    assert {"chronos2", "timesfm25", "timesfm3", "tirex", "tirex2", "moirai2"} <= set(fms)
     for fm in fms.values():
         assert len(fm.revision) == 40
+    # retired models keep their pinned entry but are not run by default or in the live registry
+    active = cfg.active_foundation_models()
+    assert "timesfm3" not in active
+    assert set(active) == {"chronos2", "timesfm25", "tirex", "tirex2", "moirai2"}
+    assert "timesfm3" not in cfg.models["benchmarks"]["combo_fm"]["of"]

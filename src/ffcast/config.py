@@ -51,13 +51,19 @@ class Config(BaseModel):
     vintage_sources: dict[str, Any]
     targets: dict[str, dict[str, Target]]
     conditioning: dict[str, list[dict[str, Any]]]
-    models: dict[str, dict[str, Any]]
+    models: dict[str, Any]
     backtest: dict[str, Any]
     scoring: dict[str, Any]
     registry: dict[str, Any]
 
     def foundation_models(self) -> dict[str, FoundationModel]:
         return {k: FoundationModel(**v) for k, v in self.models["foundation"].items()}
+
+    def active_foundation_models(self) -> dict[str, FoundationModel]:
+        """Foundation models that default runs and the live registry use: all but the retired
+        ones, whose stored results stay scorable through `foundation_models`."""
+        retired = set(self.models.get("retired") or [])
+        return {k: v for k, v in self.foundation_models().items() if k not in retired}
 
 
 def load_config(path: Path | str = DEFAULT_CONFIG) -> Config:

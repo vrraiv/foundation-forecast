@@ -646,7 +646,9 @@ def stage1(
     modes = modes or list(cfg.backtest["input_modes"])
     manifest = data_manifest()
     fms = cfg.foundation_models()
-    models = [m for m in (list(fms) if models is None else models) if m in fms]
+    models = [
+        m for m in (list(cfg.active_foundation_models()) if models is None else models) if m in fms
+    ]
     workdir.mkdir(parents=True, exist_ok=True)
     (workdir / "requests").mkdir(exist_ok=True)
     weights: dict[str, tuple[Path, str]] = {}

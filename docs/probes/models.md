@@ -28,7 +28,7 @@ Notes
 | Model | HF ID | Revision | Licence | Created | Note |
 | --- | --- | --- | --- | --- | --- |
 | TiRex-2 | `NX-AI/TiRex-2` | `352636173653592b6dceb3fbeee9224ca97952a9` | Apache-2.0 | 2026-06-16 | Multivariate with past/future covariates; 38M (+44M multivariate) params; package `tirex-2` (installed from GitHub). Runs on CPU; on Windows `torch.compile` must be disabled (`TORCH_COMPILE_DISABLE=1` or `load_model(..., compile=False)`) because no MSVC `cl` is present. Load 0.7 s, predict 0.27 s for 2 targets. Candidate to ADD: it is the only second multivariate model and its licence is more permissive than TiRex-1. Decontaminated variants exist (`TiRex-2-gifteval-zs`, `TiRex-2-fevbench`). |
-| TimesFM 3.0 | `google/timesfm-3.0-pytorch` | `43046b85ec22d584a13f8098c2ed39c889e129c2` | "timesfm-non-commercial-license-v1.0" | 2026-08-24 | Non-commercial. Per plan rule, NOT used unless owner asks. |
+| TimesFM 3.0 | `google/timesfm-3.0-pytorch` | `43046b85ec22d584a13f8098c2ed39c889e129c2` | "timesfm-non-commercial-license-v1.0" | 2026-08-24 | Non-commercial. Per plan rule, NOT used unless owner asks. **Owner asked 2026-11-19 (licence reviewed, use is non-commercial): added as `timesfm3`, see `docs/model_cards.md`.** |
 | Chronos-2 small / synth | `autogluon/chronos-2-small`, `autogluon/chronos-2-synth` | - | Apache-2.0 | 2025-11/12 | Ablation checkpoints; not needed. |
 
 ## Training data and cutoffs (best available statements)

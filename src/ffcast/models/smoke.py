@@ -210,7 +210,8 @@ def stage1(
                     )
                 )
     # foundation-model requests, one file per model
-    for mname, fm in cfg.foundation_models().items():
+    chosen = cfg.foundation_models() if models else cfg.active_foundation_models()
+    for mname, fm in chosen.items():
         if models and mname not in models:
             continue
         tasks = []

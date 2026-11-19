@@ -203,6 +203,42 @@ against outturns.
    re-evaluates only keyless skipped cells (panel built, nothing estimated) plus the 41 origins
    not yet recomputed; on the model store after the merge it adds the core CPI tasks and
    re-evaluates the skips, with no model re-run.
+7. **TimesFM 3.0 added after the Gate 4 results had been seen (2026-11-19, owner decision).**
+   The model had been found at Phase 0 and left out for one reason only, the plan's rule on
+   newer weights under non-commercial licences; on 2026-11-19 the owner reviewed the licence
+   (TimesFM Non-Commercial License v1.0), judged the project's use non-commercial, and asked for
+   the model to be included. The decision was taken with the Gate 4 tables already seen, so it is
+   recorded here as a design change after results; no result motivated it and no existing
+   forecast, rule or setting was touched. Implementation: model key `timesfm3`, weights
+   `google/timesfm-3.0-pytorch` at revision `43046b85...` (weight file 2026-08-24), environment
+   `envs/timesfm3` with the same locked packages as `envs/timesfm`, worker
+   `workers/run_timesfm3.py`, variants univariate and multivariate (the model has variate
+   attention; all variates enter as joint targets and variate 0 is returned, as for TiRex-2),
+   inference options at the package defaults and fixed in the config before the first forecast.
+   Cache keys are per model, so no other cell was recomputed: the work list was 5,736 cells at
+   310 origins for `timesfm3` and zero benchmark cells, and afterwards every other model's rows
+   are identical to the backup taken before the run at all 310 origins
+   (`data/backtest/_backup_before_timesfm3_20261119/`). Result of the run: 22,412 tasks, 22,410
+   ok, 2 stopped by the validity guard as configured (multivariate, levels variant, Canadian
+   unemployment at the 2020-06 origin, both input modes; forecast magnitude above 50 history
+   standard deviations). Reading notes: (a) the weights postdate every origin before 2026-08,
+   so in the Q2 pre/post-release split almost all of this model's forecasts fall before its
+   weight date; (b) `combo_fm` keeps its five original members, so the published combination
+   numbers do not change, and the membership is the owner's to revisit; (c) the published
+   results of 2026-11-18 (`docs/results_backtest_2026-11-18.md`) do not contain this model, and
+   tables regenerated on or after 2026-11-19 are private until the owner approves disclosure.
+   **Later on 2026-11-19 the owner (i) approved disclosure of the 19 Nov tables, published
+   verbatim as `docs/results_backtest_2026-11-19.md`; (ii) kept `combo_fm` at its five original
+   members; and (iii) retired TimesFM 3.0 from all further work:** its use is probably within
+   the licence but not clearly so (the licence excludes "production deployment"), and TimesFM
+   2.5 already represents the family. Mechanism: `models.retired` in the config; default runs of
+   `ffcast backtest` and `ffcast smoke` and the live registry use
+   `Config.active_foundation_models()`, while scoring still reads every model in the store so
+   the published tables can be regenerated. Consequence to keep in view: when a target is
+   recomputed later (for example after a vintage-source switch), the retired model is not
+   rerun, so its stored rows for that target no longer match the other models' inputs and it
+   must be left out of any table regenerated after that; the 19 Nov tables are its complete
+   record.
 
 ## Run log
 
@@ -269,6 +305,21 @@ against outturns.
   bias table and the summary were regenerated directly (22:17). `data/backtest/tables/SUMMARY.md`
   (362 KB, 7 sections) is the HUMAN GATE 4 document; the midday pre-fix tables are in
   `_tables_bench_only_broken_dfm_20261118T1152/`. Run complete; Gate 4 review is the owner's.
+- 2026-11-19 TimesFM 3.0 (Deviations 7). Smoke at 2024-06-25: 21 tasks, 0 failed checks, step 1
+  aligned with TimesFM 2.5. Store, tables and SPF results backed up to
+  `_backup_before_timesfm3_20261119/` (summary SHA-256 `cd9ad787...` as published). 09:27
+  `ffcast backtest --window all --models timesfm3 --skip-bench`: stage 1 663 s, 26 worker
+  requests, every worker ok, 22,410 tasks ok and 2 guard trips, 310 origins written; other
+  models identical to the backup on all 310 origins. Then `ffcast spf` (all models, since its
+  bookkeeping is per run and not per model) and `ffcast score`, one after the other.
+  SPF: 46 rounds, 1,080 model tasks, every worker ok, 112 regression rows; the survey-definition
+  points of every other model are identical to the backup (maximum difference 0). Score finished
+  11:58: in `scores.csv`, `pit.csv`, `cumulative_levels.csv` and `bias_fixed_event.csv` every
+  row of every other model is identical to the 18 Nov tables and the `timesfm3` rows are added
+  (7,080 score rows). `mcs.csv` differs for the other models too, as it must: model-confidence-set
+  p-values depend on the set of models compared. `tables/SUMMARY.md` is now the 19 Nov version
+  (SHA-256 `51f62eb0...`, private); the 18 Nov tables and summary as published are in
+  `_backup_before_timesfm3_20261119/tables/`. `just check` passes (68 tests).
 
 ## Private summary
 

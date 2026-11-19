@@ -14,6 +14,7 @@ real smoke requests (11 and 22 tasks) on 2026-11-18.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chronos-2 | `amazon/chronos-2` | `29ec3766d36d6f73f0696f85560a422f50e8498c` | 2025-10-30 | 2025-10-30 | Apache-2.0 | `chronos-forecasting` 2.3.2, torch 2.15.0+cpu, transformers 5.23.0 | univariate, multivariate (joint forecast of target and conditioning variates) |
 | TimesFM 2.5 | `google/timesfm-2.5-200m-pytorch` | `1d952420fba87f3c6dee4f240de0f1a0fbc790e3` | 2025-10-01 (refreshed weights) | 2025-09-02 | Apache-2.0 | `timesfm` 3.0.2, torch 2.15.0+cpu | univariate |
+| TimesFM 3.0 (added 2026-11-19) | `google/timesfm-3.0-pytorch` | `43046b85ec22d584a13f8098c2ed39c889e129c2` | 2026-08-24 (later commits change README and licence metadata only) | 2026-08-24 | TimesFM Non-Commercial License v1.0 (non-commercial and non-production use; weights may not be redistributed; outputs are not derivatives) | `timesfm` 3.0.2 (class `TimesFM3Forecaster`), torch 2.15.0+cpu, environment `envs/timesfm3` with the same pins as `envs/timesfm` | univariate, multivariate (all variates as joint targets, variate 0 returned) |
 | TiRex | `NX-AI/TiRex` | `43ebaaff068c1390785c387b3e5178df3f4c92ca` | 2025-05-26 | 2025-05-26 | NXAI Community License (research use free; attribution; commercial licence above EUR 100m revenue) | `tirex-ts` 1.4.2, torch 2.15.0+cpu | univariate |
 | TiRex-2 | `NX-AI/TiRex-2` | `352636173653592b6dceb3fbeee9224ca97952a9` | ckpt 2026-07-02; safetensors 2026-10-06 | 2026-06-16 | Apache-2.0 | `tirex-2` 0.5.0, torch 2.15.0+cpu | univariate, multivariate |
 | Moirai 2.0 | `Salesforce/moirai-2.0-R-small` | `30f43ff08c8494f4943ae1521e9d4e94a0fbb389` | 2025-08-06 | 2025-08-06 | CC-BY-NC-4.0 (non-commercial) | `uni2ts` 2.0.0, torch 2.4.1+cpu, gluonts 0.14.4 | univariate |
@@ -28,6 +29,9 @@ No model publishes a calendar cutoff for its real-data corpus. Statements found 
   Wikipedia). Multivariate ability trained on synthetic data only. FRED-MD not listed.
 - **TimesFM 2.5** (model card): GiftEvalPretrain, Wikimedia pageviews (cutoff Nov 2023), Google
   Trends (cutoff end-2022).
+- **TimesFM 3.0** (model card): GiftEvalPretrain excluding the datasets that overlap with
+  fev-bench, Wikipedia pageviews (cutoff Nov 2023), Google Trends top queries (cutoff end-2022),
+  synthetic and augmented data. No statement on macro series.
 - **TiRex** (arXiv 2505.23719): Chronos training sets incl. M4 daily/hourly/monthly/weekly,
   GiftEvalPretrain subset, synthetic Gaussian-process data. No FRED-MD, M3 or CIF.
 - **TiRex-2** (model card tag): `Salesforce/lotsa_data`, which contains FRED-MD, M3, M4 and CIF.
@@ -47,6 +51,12 @@ boundary is ambiguous between 2026-07-02 and 2026-10-06 and both are recorded.
   decile heads. Quantile crossing is removed by sorting (recorded as `rearranged`).
 - TimesFM flags: `normalize_inputs`, `use_continuous_quantile_head`, `force_flip_invariance`,
   `fix_quantile_crossing` on; `infer_is_positive` off; `max_horizon` 12.
+- TimesFM 3.0 (settings fixed 2026-11-19 before any forecast was made): the package defaults,
+  `use_symmetric_averaging`, `make_positive` and `use_znorm` off, `sort_quantiles` on,
+  `padding_mode` none; fixed decile heads; the point forecast is the median head, so no mean is
+  stored. Smoke at 2024-06-25: 21 tasks (12 univariate, 9 multivariate), all sane, step 1 aligned
+  with TimesFM 2.5 on every target. Rerun check on 40 real backtest tasks (1 to 11 variates):
+  two runs identical in every value.
 - TiRex-2 and TiRex run with `torch.compile` disabled (no MSVC on Windows).
 - Multivariate variants receive the target plus the conditioning variables selected by the
   rule in `ffcast.models.panel.Panel.multivariate` (coverage at least 80% of the last 240

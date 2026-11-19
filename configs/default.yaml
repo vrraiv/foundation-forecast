@@ -116,9 +116,14 @@ targets:
       name: Retail sales volume
       freq: M
       vintages: {source: oecd, measure: TOVM, unit: IX, activity: G47}
-      # WDS vector v1446870181: Canada; retail trade; chained Fisher volume index (2017=100), SA
-      # (coordinate 1.1.2 of 20-10-0067, from 2017-01; the OECD vintages carry the history).
-      latest: {source: statcan_wds, table: "20100067", vector: 1446870181}
+      # WDS vector v1446870183: Canada; retail trade [44-45]; retail sales at 2017 constant prices
+      # (unchained Laspeyres), SA, millions of dollars (coordinate 1.1.4 of 20-10-0067, from
+      # 2017-01). Owner decision 2026-11-19: this is the series the OECD volume index copies
+      # (monthly log growth equal to within 0.0001 over 116 months; the OECD rebases to 2015=100),
+      # so the live target has the definition of the backtest vintages, which carry the history.
+      # Until 2026-11-19 this pointed at v1446870181, the chained Fisher volume index, which is a
+      # different measure. `latest` is not part of any cache key.
+      latest: {source: statcan_wds, table: "20100067", vector: 1446870183}
       transform: log_diff
     consumption:
       name: Household final consumption expenditure, volume
@@ -248,6 +253,19 @@ models:
       licence: Apache-2.0
       env: timesfm
       variants: [univariate]
+    # Added 2026-11-19 at the owner's instruction, after the Gate 4 results had been seen
+    # (docs/backtest.md, Deviations 7). The weights (2026-08-24) postdate almost every backtest
+    # origin. RETIRED the same day by owner decision (see `retired` below): its backtest results
+    # of 2026-11-19 are published, and no further work uses it. The entry stays so that those
+    # stored results remain reproducible and scorable.
+    timesfm3:
+      hf_id: google/timesfm-3.0-pytorch
+      revision: 43046b85ec22d584a13f8098c2ed39c889e129c2
+      weights_date: "2026-08-24"       # model.safetensors upload; later commits are README/licence only
+      training_cutoff: "2023-11"       # model card: Wikipedia pageviews cutoff Nov 2023 (Google Trends end-2022)
+      licence: TimesFM-Non-Commercial-1.0
+      env: timesfm3
+      variants: [univariate, multivariate]
     tirex:
       hf_id: NX-AI/TiRex
       revision: 43ebaaff068c1390785c387b3e5178df3f4c92ca
@@ -272,11 +290,19 @@ models:
       licence: CC-BY-NC-4.0
       env: moirai
       variants: [univariate]
+  # Models with stored backtest results that take no part in any further work: default runs of
+  # `ffcast backtest` and `ffcast smoke` skip them and the live registry never runs them. Naming
+  # one explicitly with --models still works. Owner decision 2026-11-19 for timesfm3: use is
+  # probably within its non-commercial licence but not clearly so (the licence excludes
+  # "production deployment"), and TimesFM 2.5 already represents the family.
+  retired: [timesfm3]
   # Inference settings frozen before any forecast is made (2026-11-18).
   settings:
     common: {seed: 0, threads: 4, max_context: 512, allow_download: true}
     timesfm25: {max_horizon: 12, normalize_inputs: true, use_continuous_quantile_head: true, force_flip_invariance: true, infer_is_positive: false, fix_quantile_crossing: true}
     moirai2: {num_samples: 200}
+    # TimesFM 3.0: the package defaults, fixed 2026-11-19 before any forecast was made.
+    timesfm3: {use_symmetric_averaging: false, make_positive: false, sort_quantiles: true, use_znorm: false, padding_mode: none}
   benchmarks:
     naive: {kind: random_walk_or_mean}
     ar: {kind: ar_direct, max_lag: {M: 12, Q: 4}, selection: bic}

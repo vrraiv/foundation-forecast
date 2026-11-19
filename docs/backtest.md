@@ -210,6 +210,12 @@ against outturns.
   compared); DFM 57 error -> ok and 0 ok -> error on 5,426 common cells, 169 input-data errors
   unchanged; guard trips BVAR 11; rows only in the current store are the core CPI benchmark
   cells, rows only in the backup are the 11 guard-tripped BVAR cells. Step 3 started 18:12.
+- 2026-11-18 18:59 step 3 done (47 min, stage 1 12 min): work list exactly as predicted, 4,570
+  model tasks, all ok, 0 errors: core CPI real-time at all 310 origins for every model (two
+  variants for Chronos-2 and TiRex-2), plus the two re-keyed trial origins 2024-05-27 and
+  2024-06-25 for Chronos-2 and Moirai (230 tasks); the other listed cells were the 1,704 keyless
+  skips from the first run, re-keyed with no model call. Model store afterwards: every model
+  row ok, no keyless row. Step 4 (`--verify 5`) started 19:02 with step 5 (read-only) alongside.
 
 ## Private summary
 

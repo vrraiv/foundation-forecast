@@ -132,7 +132,18 @@ against outturns.
    errors (current state), or (b) give the DFM the same minimum-coverage rule as the BVAR, which
    is a benchmark-code change (`BENCH_CODE_VERSION` 3, every benchmark cell recomputed, about
    2.5 hours) and also alters the DFM input in cells that currently estimate fine whenever a
-   short column is dropped there. Not done without the owner.
+   short column is dropped there. Final count on all 310 origins: 190 DFM errors of 5,736 DFM
+   cells (3.3%; 21 of them core CPI cells added in the second pass). Mechanism, confirmed from
+   the raw Valet downloads: each series starts on a different date (10-year yield 2001-01-02;
+   target for the overnight rate 2009-04-21, a changes-only series with 35 observations in all;
+   USD/CAD 2017-01-03), the column enters the panel from its first observation, and the DFM fails
+   during the first year or so of each series while the column has 0 to 13 in-vintage values.
+   That explains 180 of the 190; the other 10 (euro-area HICP, core HICP and retail at the
+   2021-09 and 2021-10 origins, empty monthly panel) have a different, untraced cause. A sample
+   of 81 origins showed that the BVAR's selection rule would alter the DFM input in about two
+   thirds of the cells that estimate fine, so option (b) is a different benchmark, not a repair.
+   **Owner's decision (2026-11-18 evening): option (a), the rule is not changed now; the 190
+   cells stay recorded errors.**
 3. **Validity guard.** `backtest.validity` (config): a forecast is a numerical failure when a
    quantile or mean is non-finite, the estimator's log-likelihood is below -1e10, or the largest
    absolute quantile or mean exceeds 50 standard deviations of the model's own input history in
@@ -150,7 +161,17 @@ against outturns.
    sample for every model), and the ex-COVID sample loses only the horizons from those origins
    that reach beyond 2021-06. The threshold is not changed after seeing this (that would be
    tuning on the sample); whether the magnitude rule should apply to every model or the guard be
-   limited to non-finite values and the log-likelihood floor is put to the owner before scoring.
+   limited to non-finite values and the log-likelihood floor was put to the owner before scoring.
+   Evidence given to the owner: the 11 tripped values lie 80 to 550 history standard deviations
+   out, far beyond any realised 2020 move, while values of 40 to 78 percent per period from the
+   AR, the BVAR and foundation-model tail quantiles at the same pandemic origins passed, because
+   the history standard deviation at those origins includes the COVID collapse; so the guard is a
+   numerical-failure filter, not a plausibility filter, and moving the threshold either way now
+   would be a post-hoc choice made with the magnitudes in view. **Owner's decision (2026-11-18
+   evening): keep the guard as configured for every model.** The owner noted that a design with
+   the COVID observations in mind might have been chosen beforehand; the ex-COVID slice is the
+   pre-registered answer, and a pre-2020-origin view would be a subsample of this run, not a new
+   run.
 4. **Cache key.** The live-data source (`latest`) was removed from a target's key on 2026-11-18
    because the backtest never reads it; this re-keyed every cell, so the two trial origins of
    Chronos-2 and Moirai are recomputed in the second pass.

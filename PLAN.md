@@ -157,7 +157,7 @@ Purpose: a forecast record that can later be proven to have existed at each date
 
 Tests: tampering with any stored forecast, snapshot or manifest makes `verify` fail; a rerun of a past origin reproduces the same forecast hash.
 
-**HUMAN GATE 5.** Owner approves, in this order: the pre-registration text; creation of any remote repository (private for code and forecasts, public for the ledger only); enabling the schedule. Before the first public ledger entry, the owner confirms their own employer's outside-activity rules allow it. That check is the owner's, not the agent's.
+**HUMAN GATE 5.** Owner approves, in this order: the pre-registration text; creation of any remote repository (public); enabling the schedule.
 
 ### Phase 6 (deferred, do not start): LLM forecasters
 

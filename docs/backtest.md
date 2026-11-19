@@ -175,6 +175,21 @@ against outturns.
 4. **Cache key.** The live-data source (`latest`) was removed from a target's key on 2026-11-18
    because the backtest never reads it; this re-keyed every cell, so the two trial origins of
    Chronos-2 and Moirai are recomputed in the second pass.
+6. **Scoring-code fixes found on the first full scoring pass (2026-11-18 night; no forecast
+   touched, no rule changed).** (a) The fixed-event regression failed with a singular matrix when
+   every revision in a group was identical; the group now gets NaN slope and standard error. The
+   groups concerned are the levels variants (`univariate_levels`, `multivariate_levels`), whose
+   transformed-space rows exist at step 1 only, so a fixed-event sequence arises there only when
+   two successive origins share the same latest observation and the forecast is repeated
+   unchanged: 90 degenerate per-target rows, reported as NaN, none of them a stationary variant.
+   (b) The error in a fixed-event sequence used the first row's outturn for every row of the
+   period; where that row's series id had no outturn (euro-area unemployment, 10 periods), every
+   error of the group became NaN and the slope undefined for all models. Each row now uses its
+   own outturn, and rows without one give no error row, consistent with scoring. Euro-area
+   unemployment regained its 30 stationary-variant rows. Unit tests for both.
+   `ffcast score` itself stopped after writing `scores`, `pit`, `mcs` and `cumulative_levels`
+   (identical in the rerun of the remaining steps, which do not touch them); the bias table and
+   the summary were then produced by calling those two steps directly.
 5. **Cache bookkeeping per cell (2026-11-18 evening, no effect on any value).** The done-check
    used to work per (model, origin) and only verified the keys of cells present in the store, so
    a target absent from the store was taken as done: Canadian core CPI was skipped as `blocked`
@@ -245,6 +260,13 @@ against outturns.
   `_tables_bench_only_broken_dfm_20261118T1152/` so `tables/` holds only the final run's output.
   Step 5 on the final store: unchanged from the 18:12 run (zero differing AR/BVAR/naive rows on
   all 310 origins). Steps 6 and 7 wait for the owner's guard-scope and DFM-coverage decisions.
+- 2026-11-18 evening: owner's decisions (guard kept, DFM rule unchanged). Step 6 `ffcast score`
+  ran 19:45-21:33 and stopped in the fixed-event regression after writing the four main tables
+  (Deviations 6); step 7 `ffcast spf` ran 21:33-22:02 (46 rounds, 894 benchmark rows, 900 model
+  tasks, every worker ok, 263 outturns, 104 regression rows). After the two scoring fixes the
+  bias table and the summary were regenerated directly (22:17). `data/backtest/tables/SUMMARY.md`
+  (362 KB, 7 sections) is the HUMAN GATE 4 document; the midday pre-fix tables are in
+  `_tables_bench_only_broken_dfm_20261118T1152/`. Run complete; Gate 4 review is the owner's.
 
 ## Private summary
 

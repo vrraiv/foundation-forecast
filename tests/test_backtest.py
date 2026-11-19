@@ -182,6 +182,14 @@ def test_scoring_metrics_known_answers():
     assert pv["bad"] < 0.05 and pv["good"] == 1.0 and pv["mid"] >= pv["bad"]
 
 
+def test_hac_ols_degenerate_regressor_gives_nan_not_error():
+    # every revision identical (all zero): slope not identified; the row must not fail the table
+    y = np.array([0.3, -0.1, 0.2, 0.0, 0.1])
+    b, se, a, n = _hac_ols(y, np.zeros(5), 3)
+    assert np.isnan(b) and np.isnan(se) and n == 5
+    assert a == pytest.approx(y.mean())
+
+
 def test_hac_ols_recovers_slope():
     rng = np.random.default_rng(2)
     x = rng.normal(size=500)

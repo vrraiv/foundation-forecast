@@ -29,6 +29,11 @@ def _hac_ols(y: np.ndarray, x: np.ndarray, lag: int) -> tuple[float, float, floa
     """Slope, HAC standard error, intercept, n for y = a + b x + e."""
     n = len(y)
     X = np.column_stack([np.ones(n), x])
+    # Degenerate regressor (every revision identical, typically all zero): the slope is not
+    # identified, so the row carries NaN for slope and standard error rather than failing the
+    # whole table (2026-11-18, found on the first full scoring pass; docs/backtest.md).
+    if n < 3 or not np.isfinite(x).all() or not np.isfinite(y).all() or np.ptp(x) == 0.0:
+        return float("nan"), float("nan"), float(np.mean(y)) if n else float("nan"), n
     beta, *_ = np.linalg.lstsq(X, y, rcond=None)
     u = y - X @ beta
     XtX_inv = np.linalg.inv(X.T @ X)

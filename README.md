@@ -9,6 +9,7 @@ live forecast registry.
 - `STATUS.md`: current state, decisions, deviations from the plan.
 - `docs/feasibility.md`: Phase 0 findings; `docs/probes/`: raw probe reports.
 - `configs/default.yaml`: the single configuration file (targets, horizons, origins, models).
+- `docs/results_backtest_2026-11-18.md`: tables of the first full backtest (disclosure approved at Gate 4); `docs/backtest.md`: design, deviations, run log.
 
 ## Setup
 

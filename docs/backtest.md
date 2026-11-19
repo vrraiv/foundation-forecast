@@ -178,15 +178,17 @@ against outturns.
 6. **Scoring-code fixes found on the first full scoring pass (2026-11-18 night; no forecast
    touched, no rule changed).** (a) The fixed-event regression failed with a singular matrix when
    every revision in a group was identical; the group now gets NaN slope and standard error. The
-   groups concerned are the levels variants (`univariate_levels`, `multivariate_levels`), whose
-   transformed-space rows exist at step 1 only, so a fixed-event sequence arises there only when
-   two successive origins share the same latest observation and the forecast is repeated
-   unchanged: 90 degenerate per-target rows, reported as NaN, none of them a stationary variant.
-   (b) The error in a fixed-event sequence used the first row's outturn for every row of the
-   period; where that row's series id had no outturn (euro-area unemployment, 10 periods), every
-   error of the group became NaN and the slope undefined for all models. Each row now uses its
-   own outturn, and rows without one give no error row, consistent with scoring. Euro-area
-   unemployment regained its 30 stationary-variant rows. Unit tests for both.
+   groups concerned are all `univariate_levels` rows: their transformed-space rows exist at step
+   1 only, the sequences found there have length two, and the two points are identical in every
+   sequence, so the regressor has no variance: 90 degenerate per-target rows, reported as NaN,
+   none of them a stationary variant. (b) The error in a fixed-event sequence used the first
+   row's outturn for every row of the period. Euro-area unemployment has two series ids in the
+   store (the ECB RTD series and the OECD series, both present at 20 periods), outturns are
+   keyed by series id, and where the first row of a period carried the id without an outturn
+   (10 periods) every error of the group became NaN and the slope undefined for every model.
+   Each row now uses its own outturn, and rows without one give no error row, consistent with
+   scoring. Degenerate per-target rows fell from 116 to 90, the 26 euro-area unemployment rows of
+   the stationary variants. Unit tests for both.
    `ffcast score` itself stopped after writing `scores`, `pit`, `mcs` and `cumulative_levels`
    (identical in the rerun of the remaining steps, which do not touch them); the bias table and
    the summary were then produced by calling those two steps directly.

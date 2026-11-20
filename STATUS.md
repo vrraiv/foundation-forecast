@@ -204,6 +204,13 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 Nothing open.
 
+- **Noted for later, not decided (owner, 2026-11-19):** in two or three years the local storage
+  of this project may be moved to cloud-only storage, or the project may be archived after one
+  or two years. Sizes, what must stay local, what offloading would require of `registry-verify`,
+  and an archiving checklist are in `docs/registry.md`, "Storage outlook and possible futures".
+  The owner confirmed on 2026-11-19 that the backup opens with the password from their password
+  manager and that the backup folder is kept on this device.
+
 - **Cloud backup of the git-ignored work: DONE 2026-11-19 (owner request of the same day).**
   restic repository in a folder the OneDrive client syncs (a household account, not the
   owner's employer's), encrypted on this machine before anything is written there. Settings
@@ -215,7 +222,7 @@ Nothing open.
   job calls it after every run. `scripts/restic.ps1 <command>` is restic for this repository
   only. First backup: 4,344 files, 2.5 GiB read, 451 MiB stored. Restore test: the trial run and
   `registry/` restored to a scratch folder; `registry-verify` passes on both restored copies
-  and the restored trial is identical to the original, file for file (232 files). Left for the
+  and the restored trial is identical to the original, file for file (232 files). (Both owner steps below were confirmed done the same evening.) Left for the
   owner: open the repository once with the password typed from the password manager, and mark
   the backup folder "Always keep on this device" in OneDrive. Without the password the backup
   is unreadable.

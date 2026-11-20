@@ -182,6 +182,61 @@ for file. To restore after a loss: install restic, point the two variables at th
 folder and a file holding the password, `pwsh scripts/restic.ps1 restore latest --target <dir>`,
 then `ffcast registry-verify --root <dir>/registry`.
 
+## Storage outlook and possible futures (owner's note, 2026-11-19)
+
+Nothing here is decided or built. The owner flagged two possibilities to keep on record: after
+two or three years the local footprint may no longer be welcome on this machine, so that a
+project like this becomes a candidate for cloud-only storage; or the project runs for only one
+or two years and is then archived.
+
+Measured on 2026-11-19: `data/` 5.8 GB, of which model weights 3.9 GB, the backtest store 1.4 GB
+(1.1 GB of it one-off worker files), raw backtest downloads 0.6 GB, the trial run 0.6 GB. Each
+monthly origin adds about 0.6 GB locally, almost all raw OECD and ECB downloads, which compress
+to a few percent: the backup stored 451 MiB for 2.5 GiB read. Projection, local / backup: about
+13 GB / under 2 GB after one year, about 41 GB / 3 to 5 GB after five (the backup figures are
+estimates from one backup).
+
+What has to stay on this machine for the monthly run: the code, the environments, the weights
+of the five active models (2.6 GB; TimesFM 3.0's 1.3 GB is needed only to reproduce its
+published backtest), `registry/prereg/`, and the ledger. A run does not read earlier origins.
+
+What could live in the cloud only, with the backup as the sole copy:
+
+- The data snapshots of past origins (`registry/origins/<origin>/snapshot/`), which are nearly
+  all of the growth. Consequence: `registry-verify` checks every origin's snapshot against its
+  digest and would report an offloaded one as changed. Offloading therefore needs a small
+  addition first: an explicit "archived" state per origin, in which verify checks the manifest,
+  the commitments and the proof locally and names the snapshot as held in the backup, plus a
+  command that restores an origin for a full check or a rerun. That is a change to tooling, not
+  to the design, and needs no amendment; it must not alter any sealed file.
+- Scoring needs the snapshots back for `live` outturns (the registry's own monthly snapshots
+  are the vintages), so the first scoring, after 12 origins, restores them.
+- The backtest's one-off worker files (`data/backtest/work/`, 1.1 GB) and the trial run
+  (0.6 GB) can be dropped locally at any time once they are in the backup.
+- Before anything exists only in the cloud, the backup should stop being a single copy: a
+  second repository or an offline copy, and a restore test of what is about to be removed.
+
+Storing snapshots compressed locally was considered and not done: it would change how sealed
+files are stored for 7 GB a year.
+
+If the project is archived after one or two years:
+
+- Stop: disable the scheduled task and set `registry.enabled: false`. The ledger then simply
+  ends; `scripts/check_ledger.py --expect` and the scheduled GitHub check would report the
+  missing origins, so the workflow's schedule is removed in the same commit and the end is
+  stated in STATUS and, as a dated note, in `PREREGISTRATION_AMENDMENTS.md`.
+- The pre-registration's scoring rule still applies to what exists: no score before 12 origins
+  have outturns, and outturns keep arriving for up to 12 months after the last origin (the
+  12-step horizon) and another 12 for the revised outturn. Archiving early means either running
+  the data snapshots (without forecasts) long enough to collect outturns, or scoring only what
+  the vintage sources can supply later. That choice should be written down before the last run.
+- Keep, permanently: the ledger and its git history, the time-stamp proofs (upgraded to
+  complete Bitcoin attestations while the calendars still hold them), the salts, manifests,
+  forecast and status files, pinned configs and lockfiles, and the pre-registration copy. These
+  are small (well under 1 MB per origin). The data snapshots are what make a byte-for-byte rerun
+  possible; without them the commitments still prove what was forecast and when.
+- A final full backup, a restore test, and the password kept as long as the archive matters.
+
 ## Proposal: scheduling (plan step 8; not enabled)
 
 Requirement: one run on each origin day, at a fixed time, with an alert on failure, and no run

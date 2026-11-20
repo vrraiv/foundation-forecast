@@ -197,7 +197,7 @@ to a few percent: the backup stored 451 MiB for 2.5 GiB read. Projection, local 
 estimates from one backup).
 
 What has to stay on this machine for the monthly run: the code, the environments, the weights
-of the five active models (2.6 GB; TimesFM 3.0's 1.3 GB is needed only to reproduce its
+of the five active models (about 2.8 GB; TimesFM 3.0's 1.3 GB is needed only to reproduce its
 published backtest), `registry/prereg/`, and the ledger. A run does not read earlier origins.
 
 What could live in the cloud only, with the backup as the sole copy:

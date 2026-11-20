@@ -163,6 +163,25 @@ Tests: tampering with any stored forecast, snapshot or manifest makes `verify` f
 
 Text-model forecasts need API keys, cost controls and look-ahead diagnostics (fake-date tests, recall probes). Leave an interface stub and a note only.
 
+### Phase 7 (planned, not before January 2027): public site
+
+Added on 2026-11-19 at the owner's instruction; this section was drafted by the agent from that instruction and is the owner's to revise. Do not start before the 2026-12-25 live run has been made and the owner says go. Estimated at about one day of design.
+
+Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.
+
+Scope as stated by the owner: covers the results and the live runs; for the live runs, errors only.
+
+To settle at the start of the phase (owner's decisions, listed so they are not made by default):
+
+1. **What "errors only" shows for the live runs.** Reading A: forecast errors (forecast minus outturn) once outturns exist, never the forecasts themselves ahead of time. Reading B: only the operational status of each run (made, late, missed, failed), with no forecast-derived number. The two differ in what they disclose and in what the pre-registration allows (next two points).
+2. **The frozen pre-registration.** Section 9 of `PREREGISTRATION.md` says that until 12 monthly origins have first-release outturns, no score, error or ranking is computed from the live forecasts, by anyone, for any purpose. A site showing live forecast errors before then would break that rule. So either the live part of the site shows only what the public ledger already shows (origins, run times, on time or late, hashes, time-stamp proofs, whether each line verifies) until the first scoring, or the rule is changed by a dated entry in `PREREGISTRATION_AMENDMENTS.md` before any error is computed. The first option needs no amendment.
+3. **Forecasts are private.** An error published next to a public outturn reveals the forecast. Publishing errors is therefore a decision to disclose the forecasts after the fact, for the periods shown. That is compatible with the registry's purpose (the hash was public first) but it is a disclosure decision, like the one taken for the backtest tables.
+4. **Which results.** The published backtest tables (`docs/results_backtest_2026-11-18.md`, `docs/results_backtest_2026-11-19.md`) are the approved material. The site should present them with the reading notes that qualify them (2020 dominance at horizon 1, sample sizes, low power of the model confidence set), not as a league table. Whether the retired TimesFM 3.0 appears is a choice: its backtest tables are already public, and it was retired over the wording of its licence about interactions with end users.
+5. **Where it is hosted and how it is updated.** A static site built from files in this repository (for example GitHub Pages) needs no server and no private data: it can be rebuilt by a workflow whenever the ledger or the published tables change. Anything that needs the private store must be built on the owner's machine and published as static output.
+6. **Promotion.** The site itself needs no prior clearance (owner, 2026-11-19). Advertising it on social media or in public venues does.
+
+Done when: the site builds from the repository with one command; every number on it traces to a published table or to the public ledger; nothing from `data/` or `registry/` is reachable from it except what the owner has approved for disclosure; it reads well on a phone; and the owner has approved it before it goes public.
+
 ## 5. Risks the agent should surface, not solve
 
 - Canada's vintage history is short (about a decade), so tests will have low power. Report sample sizes prominently.

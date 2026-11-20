@@ -1,9 +1,10 @@
 # Pre-registration of the live forecast record
 
-**Status: DRAFT for HUMAN GATE 5. Not frozen, not hashed, not in any ledger.** The owner approves
-this text first; only then is it hashed and made the first ledger entry. Items marked
-**PROPOSED** are choices the plan left open and the agent filled in; the owner may change any of
-them before the freeze. After the freeze nothing in this file changes; later changes go into
+**Status: approved by the owner on 2026-11-19 at HUMAN GATE 5 and frozen.** The SHA-256 of this
+file (UTF-8, LF line endings) is the first line of the public ledger, `ledger/ledger.jsonl`.
+Items marked **PROPOSED** are choices the plan left open, which the agent proposed and the owner
+approved together with the rest of the text; the marker is kept to show where they came from.
+Nothing in this file changes after the freeze; later changes go into
 `PREREGISTRATION_AMENDMENTS.md` (section 11).
 
 Configuration this text describes (hash of the parsed `configs/default.yaml`, independent of

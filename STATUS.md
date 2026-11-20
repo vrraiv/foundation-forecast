@@ -204,7 +204,31 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## To do
 
-Nothing open.
+One item, before 2026-12-23.
+
+- **The 2026-12-25 origin will run unattended: the owner is away from 23 to 31 December** and
+  can leave the machine on but cannot guarantee it stays on. Checked 2026-11-19: desktop on
+  mains, sleep and hibernate never, wake timers on, so an undisturbed machine will run. The
+  weak point is a restart (Windows Update or a power cut): the scheduled task runs only while
+  the owner is logged in (logon type Interactive), so after a restart nothing runs until
+  someone logs in. To do before the 23rd, each the owner's choice:
+  1. Let the task run whether or not the owner is logged on (Task Scheduler, task properties,
+     "Run whether user is logged on or not"; Windows asks for the account password and stores
+     it; the agent must not handle that password). Then a restart does not stop the run.
+  2. Pause Windows Update until after 1 January (Settings, Windows Update, Pause; up to five
+     weeks), so no update restarts the machine in the window.
+  3. Optional: firmware setting to power on again after a power cut.
+  4. Rehearse once before leaving: restart the machine, do not log in, and after 18:00 check
+     that `registry/job.log` has that day's line. On an ordinary day the job only logs "nothing
+     due", so the rehearsal costs nothing and tests the whole unattended path, including whether
+     the job can still reach the settings in the user profile and push with stored credentials.
+  5. Leave the repository clean and pushed before leaving.
+  If the run is missed anyway: the job retries at every later start, the GitHub check opens an
+  issue from the 27th (mailed to the owner), and a run made on return (31 December or after) is
+  recorded as late. Under the frozen pre-registration a late `live` forecast, `live` being the
+  primary mode, is reported separately and left out of the main tables, so a late December run
+  costs that origin from the primary sample but not from the record. The origin is lost only if
+  nothing runs before 2027-01-25.
 
 - **Noted for later, not decided (owner, 2026-11-19):** in two or three years the local storage
   of this project may be moved to cloud-only storage, or the project may be archived after one

@@ -202,17 +202,23 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## To do
 
-- **Cloud backup of the git-ignored work (owner request 2026-11-19).** Everything under `data/`
-  (about 5.8 GB: raw downloads with manifests, the forecast store, scoring tables, SPF results,
-  smoke outputs, worker requests and responses, model weights) and, from Phase 5, `registry/`
-  exists only on this machine. Set up an encrypted, deduplicating backup to the owner's OneDrive;
-  the owner suggests restic or a similar tool (restic reaches OneDrive through its rclone
-  backend). To settle when it is set up: what to exclude (`data/models/` weights are
-  re-downloadable at pinned revisions and verified by hash; virtual environments are rebuilt from
-  the lockfiles), where the repository password is kept, a schedule, and a restore test. Encrypt
-  on this machine before upload, since the store holds unpublished forecasts. This also covers
-  PLAN.md Phase 5 step 7 (backup of `registry/`). The owner sets up the OneDrive side; nothing
-  has been uploaded.
+Nothing open.
+
+- **Cloud backup of the git-ignored work: DONE 2026-11-19 (owner request of the same day).**
+  restic repository in a folder the OneDrive client syncs (a household account, not the
+  owner's employer's), encrypted on this machine before anything is written there. Settings
+  are project-specific user environment variables, `FFCAST_RESTIC_REPOSITORY` and
+  `FFCAST_RESTIC_PASSWORD_FILE` (the file is outside the repository and outside OneDrive,
+  readable by the owner's account only); the generic `RESTIC_*` names are not used, so another
+  project's repository cannot be touched by accident. `scripts/registry_backup.ps1` backs up
+  `registry/` in full and `data/` except `data/models/`, then runs `restic check`; the monthly
+  job calls it after every run. `scripts/restic.ps1 <command>` is restic for this repository
+  only. First backup: 4,344 files, 2.5 GiB read, 451 MiB stored. Restore test: the trial run and
+  `registry/` restored to a scratch folder; `registry-verify` passes on both restored copies
+  and the restored trial is identical to the original, file for file (232 files). Left for the
+  owner: open the repository once with the password typed from the password manager, and mark
+  the backup folder "Always keep on this device" in OneDrive. Without the password the backup
+  is unreadable.
 
 ## Blocked or needing the owner
 

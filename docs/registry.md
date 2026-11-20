@@ -167,6 +167,21 @@ OneDrive, with restic or similar. Proposal, nothing set up:
   the remote exists.
 - A second copy on an external disk would protect against losing access to the account.
 
+## Backup as built (2026-11-19)
+
+Differs from the proposal in one way: no rclone. The repository is an ordinary folder inside
+the owner's OneDrive-synced directory, and the OneDrive client uploads it; restic encrypts
+before writing, so only ciphertext reaches OneDrive. `scripts/registry_backup.ps1` backs up
+`registry/` and `data/` (minus `data/models/`) and runs `restic check`; `scripts/restic.ps1`
+runs any restic command against this repository using `FFCAST_RESTIC_REPOSITORY` and
+`FFCAST_RESTIC_PASSWORD_FILE` from the user's Windows profile and ignores the generic
+`RESTIC_*` variables. First backup 451 MiB stored for 2.5 GiB read (raw OECD and ECB text
+compresses to a few percent). Restore test passed: restored copies of the trial run and of
+`registry/` verify with `registry-verify`, and the restored trial equals the original file
+for file. To restore after a loss: install restic, point the two variables at the repository
+folder and a file holding the password, `pwsh scripts/restic.ps1 restore latest --target <dir>`,
+then `ffcast registry-verify --root <dir>/registry`.
+
 ## Proposal: scheduling (plan step 8; not enabled)
 
 Requirement: one run on each origin day, at a fixed time, with an alert on failure, and no run
@@ -230,6 +245,5 @@ never. Division of labour:
   origins have outturns; the code will be the backtest's scoring applied to the registry files).
 - Upgrading pending time-stamp proofs to complete Bitcoin attestations and verifying those
   (possible at any later date with public tools; the pending proofs are what must be kept).
-- The backup script (`scripts/registry_backup.ps1`): needs the owner's rclone remote for
-  OneDrive and a restic password. restic is installed on this machine; rclone is not.
+- (Backup: built and tested on 2026-11-19, see below.)
 - Registering the scheduled task: the owner's step after HUMAN GATE 5.

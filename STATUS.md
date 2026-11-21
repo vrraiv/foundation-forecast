@@ -223,6 +223,16 @@ One item, before 2026-12-23.
      due", so the rehearsal costs nothing and tests the whole unattended path, including whether
      the job can still reach the settings in the user profile and push with stored credentials.
   5. Leave the repository clean and pushed before leaving.
+  6. Do not count on a Claude session for repair from the road. On 2026-11-21 the owner's Claude
+     login on this machine expired after about two days with remote-control sessions active, so
+     a session left open on the 23rd will probably be unreachable by the 25th. The job itself
+     uses no Claude login (it runs uv, git and restic only), so this does not stop the run; it
+     removes the means of fixing a failed run remotely. The logins the job does use are the
+     GitHub one stored by Git Credential Manager (ledger push) and the OneDrive sign-in (upload
+     of the backup). If either lapses the forecasts are still made, sealed and time-stamped on
+     time; the push is retried at every daily start, and the GitHub check reports a missing
+     line from the 27th. The rehearsal in step 4 tests the push path only if a commit is
+     waiting, so before leaving also confirm `git push` works without a prompt.
   If the run is missed anyway: the job retries at every later start, the GitHub check opens an
   issue from the 27th (mailed to the owner), and a run made on return (31 December or after) is
   recorded as late. Under the frozen pre-registration a late `live` forecast, `live` being the

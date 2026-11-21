@@ -225,10 +225,11 @@ One item, before 2026-12-23.
   5. Leave the repository clean and pushed before leaving.
   6. Do not count on a Claude session for repair from the road. On 2026-11-21 the owner's Claude
      login on this machine expired while remote-control sessions about two days old were
-     active. How long a login lasts is not known: the login was older than those sessions, so
-     the window may be longer than two days. A session left open on the 23rd may therefore be
-     unreachable by the 25th; logging in afresh just before leaving gives the longest window
-     and, on return, one more observation of its length. The job itself
+     active. `claude auth status` after logging in again that day reports
+     `loginExpiresAt` 2026-12-18, about four weeks after the login, so the window is weeks, not
+     days. That login ends before the trip: log in afresh on 22 or 23 December and check that
+     `loginExpiresAt` falls after 31 December. A session can still become unreachable for other
+     reasons (restart, network), so remote repair remains a bonus, not a safeguard. The job itself
      uses no Claude login (it runs uv, git and restic only), so this does not stop the run; it
      removes the means of fixing a failed run remotely. The logins the job does use are the
      GitHub one stored by Git Credential Manager (ledger push) and the OneDrive sign-in (upload

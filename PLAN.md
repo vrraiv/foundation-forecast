@@ -180,6 +180,8 @@ Added on 2026-11-19 at the owner's instruction; this section was drafted by the 
 - Build: fully static. A Python export step writes JSON from the existing tables and forecast store, with a test that exported numbers equal the published tables; the browser only filters and draws. Vite and React, in `site/` with its own lockfile; the root lockfile, configs and pins are untouched. Hosting: a Cloudflare Worker serving static files, deployed from the repository, under the owner's personal Cloudflare account.
 - "Every number traces to a published table" in the done-when below now reads: every number traces to a published table, to the committed export files, or to the public ledger.
 
+- Styling (owner, 2026-11-26, after the first mock-up): Tailwind CSS, with every colour a semantic token derived from seed colours the owner will choose; light and dark themes with a visible toggle. On phones the plots take the full width and the figures sit beneath them, with no sideways scrolling.
+
 Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26; (3) export step and its test; (4) remaining pages; (5) phone check, owner approval on a private preview, deploy.
 
 Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.

@@ -167,7 +167,7 @@ Text-model forecasts need API keys, cost controls and look-ahead diagnostics (fa
 
 Added on 2026-11-19 at the owner's instruction; this section was drafted by the agent from that instruction and is the owner's to revise. Estimated at about one day of design.
 
-**Revised 2026-11-26 (owner):** the site may go ahead before the 2026-12-25 run and before January 2027, and direct model outputs may be public. This supersedes the "errors only" scope and points 1 to 3 below, which are kept for the record. The live part of the site shows the published forecasts and outturns, and no live error, score or ranking before the pre-registration's 12-origin threshold. Publishing live forecasts waits for Amendment 1 (draft in `docs/drafts/PREREGISTRATION_AMENDMENTS_DRAFT.md`) to be approved and in force.
+**Revised 2026-11-26 (owner):** the site may go ahead before the 2026-12-25 run and before January 2027, and direct model outputs may be public. This supersedes the "errors only" scope and points 1 to 3 below, which are kept for the record. The live part of the site shows the published forecasts and outturns, and no live error, score or ranking before the pre-registration's 12-origin threshold. Live forecasts are published under Amendment 1 (`PREREGISTRATION_AMENDMENTS.md`, approved 2026-11-26), one GitHub release per origin.
 
 Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.
 

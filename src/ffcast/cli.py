@@ -337,6 +337,33 @@ def registry_verify(
     raise typer.Exit(code=1 if problems else 0)
 
 
+@app.command("registry-publish")
+def registry_publish(
+    origin: str = typer.Argument(..., help="Origin date YYYY-MM-DD"),
+    out: str = typer.Option("", help="Staging folder (default: registry/public/<origin>/)"),
+    release: bool = typer.Option(False, help="Create the GitHub release registry-<origin>"),
+    root: str = typer.Option("", help="Registry folder (default: registry/)"),
+    ledger: str = typer.Option("", help="Ledger file (default: ledger/ledger.jsonl)"),
+) -> None:
+    """Disclose one sealed origin under Amendment 1: stage byte-identical copies, optionally
+    upload them as a GitHub release."""
+    from pathlib import Path
+
+    from .registry import publish
+
+    paths = _registry_paths(root, ledger)
+    dest = Path(out) if out else paths.root / "public" / origin
+    try:
+        staged = publish.bundle(paths, origin, dest)
+        for p in staged:
+            typer.echo(f"staged {p}")
+        if release:
+            typer.echo(publish.release(origin, staged))
+    except publish.PublishError as exc:
+        typer.echo(f"refused: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
 def _not_implemented(name: str) -> int:
     typer.echo(f"{name}: not implemented yet (see STATUS.md for the current phase)", err=True)
     return 2

@@ -77,3 +77,11 @@ def test_refuses_dry_run_manifests(reg: core.Paths, tmp_path: Path) -> None:  # 
     _fake_ots(reg, o)
     with pytest.raises(publish.PublishError, match="dry-run"):
         publish.bundle(reg, o, tmp_path / "out")
+
+
+def test_pending_needs_a_public_ledger_line_and_no_release(reg: core.Paths) -> None:  # noqa: F811
+    runs = [e for e in lg.read(reg.ledger) if e["kind"] == "run"]
+    public = {e["entry_hash"] for e in runs[:2]}  # third line not pushed yet
+    released = {f"registry-{runs[0]['origin']}"}
+    assert publish.pending(reg, released, public) == [runs[1]["origin"]]
+    assert publish.pending(reg, released, set()) == []

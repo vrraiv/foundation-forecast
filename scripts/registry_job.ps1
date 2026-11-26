@@ -11,6 +11,11 @@
 #   4. Backup, if `scripts/registry_backup.ps1` exists (set up by the owner; restic to OneDrive).
 #   5. Commit and push `ledger/ledger.jsonl` only. If the push fails the commit stays local and
 #      the next start pushes it; the time stamp already proves the date independently.
+#   6. Publish (Amendment 1): `ffcast registry-publish-pending` creates the GitHub release
+#      `registry-<origin>` for every sealed origin whose ledger line is on the remote and that has
+#      no release yet. Runs at every start once the ledger is pushed, so a failed publication is
+#      retried the next day. A failure here logs PUBLISH FAILED and exits 7 (forecasts are sealed,
+#      time-stamped and pushed regardless).
 #
 # Nothing private is committed: `registry/` and `data/` are git-ignored, and step 5 stages one
 # file by name. Results go to `registry/job.log` (private). The exit code is 0 only if every
@@ -30,6 +35,14 @@ $log = Join-Path $repo "registry\job.log"
 
 function Write-Log([string]$msg) {
     "$((Get-Date).ToString('s')) $msg" | Add-Content -Path $log -Encoding utf8
+}
+
+function Publish-Releases {
+    $out = uv run ffcast registry-publish-pending 2>> (Join-Path $repo "registry\job_run.log")
+    if ($LASTEXITCODE -ne 0) { Write-Log "PUBLISH FAILED (exit $LASTEXITCODE); see registry\job_run.log; will retry at the next start"; return $false }
+    $line = ($out | Select-Object -Last 1)
+    if ($line -notmatch "nothing pending") { Write-Log $line }
+    return $true
 }
 
 function Publish-Ledger {
@@ -69,8 +82,11 @@ try {
     }
     if (-not $st.due) {
         $pushed = Publish-Ledger
+        $released = if ($pushed) { Publish-Releases } else { $true }
         Write-Log "nothing due (enabled=$($st.enabled) preregistered=$($st.preregistered) origin=$($st.origin) done=$($st.done))"
-        if ($pushed) { exit 0 } else { exit 4 }
+        if (-not $pushed) { exit 4 }
+        if (-not $released) { exit 7 }
+        exit 0
     }
     Write-Log "run due: origin $($st.origin), $($st.days_late) day(s) after the origin day"
 
@@ -101,9 +117,11 @@ try {
     }
 
     $pushed = Publish-Ledger
-    if ($pushed -and $backupOk) { Write-Log "done: origin $($st.origin)"; exit 0 }
+    $released = if ($pushed) { Publish-Releases } else { $true }
+    if ($pushed -and $backupOk -and $released) { Write-Log "done: origin $($st.origin)"; exit 0 }
     if (-not $pushed) { exit 4 }
-    exit 5
+    if (-not $backupOk) { exit 5 }
+    exit 7
 }
 catch {
     Write-Log "JOB ERROR: $($_.Exception.Message)"

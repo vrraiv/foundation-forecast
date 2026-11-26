@@ -364,6 +364,25 @@ def registry_publish(
         raise typer.Exit(code=1) from exc
 
 
+@app.command("registry-publish-pending")
+def registry_publish_pending(
+    dry_run: bool = typer.Option(False, help="List what would be published, publish nothing"),
+    root: str = typer.Option("", help="Registry folder (default: registry/)"),
+    ledger: str = typer.Option("", help="Ledger file (default: ledger/ledger.jsonl)"),
+) -> None:
+    """Publish, as GitHub releases, every sealed origin whose ledger line is on the public remote
+    and that has no release yet (Amendment 1). The scheduled job calls this."""
+    from .registry import publish
+
+    try:
+        done = publish.publish_pending(_registry_paths(root, ledger), dry_run=dry_run)
+    except publish.PublishError as exc:
+        typer.echo(f"refused: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    verb = "would publish" if dry_run else "published"
+    typer.echo(f"{verb}: {', '.join(done) if done else 'nothing pending'}")
+
+
 def _not_implemented(name: str) -> int:
     typer.echo(f"{name}: not implemented yet (see STATUS.md for the current phase)", err=True)
     return 2

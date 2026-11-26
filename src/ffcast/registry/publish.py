@@ -130,3 +130,54 @@ def release(origin: str, staged: list[Path], repo: str | None = None) -> str:
     if res.returncode != 0:
         raise PublishError(f"gh release create failed: {res.stderr.strip()}")
     return res.stdout.strip()
+
+
+# ------------------------------------------------------------------ automatic publication
+
+
+def pending(paths: core.Paths, released: set[str], public_hashes: set[str]) -> list[str]:
+    """Origins due for publication: a run line in the ledger that is already on the public
+    remote (so outsiders can check the release against it) and has no release yet."""
+    return [
+        e["origin"]
+        for e in lg.read(paths.ledger)
+        if e.get("kind") == "run"
+        and e["entry_hash"] in public_hashes
+        and f"registry-{e['origin']}" not in released
+    ]
+
+
+def released_tags(repo: str | None = None) -> set[str]:
+    cmd = ["gh", "release", "list", "--limit", "1000", "--json", "tagName"]
+    if repo:
+        cmd += ["--repo", repo]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        raise PublishError(f"gh release list failed: {res.stderr.strip()}")
+    return {r["tagName"] for r in json.loads(res.stdout or "[]")}
+
+
+def public_entry_hashes(ref: str = "origin/main", path: str = "ledger/ledger.jsonl") -> set[str]:
+    res = subprocess.run(
+        ["git", "show", f"{ref}:{path}"], capture_output=True, text=True, cwd=core.REPO
+    )
+    if res.returncode != 0:
+        raise PublishError(f"cannot read the public ledger at {ref}: {res.stderr.strip()}")
+    return {json.loads(x)["entry_hash"] for x in res.stdout.splitlines() if x.strip()}
+
+
+def publish_pending(paths: core.Paths, dry_run: bool = False) -> list[str]:
+    """Publish every pending origin as a GitHub release. Staging folders are derived files and
+    are rebuilt from scratch on each attempt."""
+    todo = pending(paths, released_tags(), public_entry_hashes())
+    done = []
+    for origin in todo:
+        if dry_run:
+            done.append(origin)
+            continue
+        dest = paths.root / "public" / origin
+        if dest.exists():
+            shutil.rmtree(dest)
+        release(origin, bundle(paths, origin, dest))
+        done.append(origin)
+    return done

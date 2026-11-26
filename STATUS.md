@@ -209,9 +209,12 @@ remote; data/ and registry/ are git-ignored and must never be committed).
   the ledger, matches its commitments and has a real time-stamp proof, then creates the GitHub
   release `registry-<origin>`. Check with `python scripts/verify_published.py ledger/ledger.jsonl
   <downloaded assets>`. Done for 2026-11-25 on 2026-11-26 (release `registry-2026-11-25`,
-  downloaded back and verified). The scheduled job does not publish, so the 2026-12-25 origin is
-  published by hand once someone is back at the machine; the amendment says "as soon as
-  practicable". The published `.ots` proofs are pending attestations; upgraded proofs can be added
+  downloaded back and verified). Since 2026-11-26 (owner) the scheduled job publishes automatically:
+  at every start, once the ledger is pushed, `ffcast registry-publish-pending` releases any sealed
+  origin whose ledger line is on the remote and has no release yet (failure: PUBLISH FAILED,
+  exit 7, retried the next day). It uses the `gh` login in the owner's Windows credential store,
+  so the pre-December rehearsal (step 4 below) must also show that `gh` works from the task,
+  particularly if the task is switched to "run whether user is logged on or not". The published `.ots` proofs are pending attestations; upgraded proofs can be added
   to a release later as extra assets without replacing anything.
 
 Before the December origin:

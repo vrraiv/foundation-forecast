@@ -204,7 +204,17 @@ remote; data/ and registry/ are git-ignored and must never be committed).
 
 ## To do
 
-One item, before the December origin.
+- **Publish each origin after its run (Amendment 1).** `uv run ffcast registry-publish <origin> --release`
+  stages byte-identical copies under `registry/public/<origin>/`, refuses unless the origin is in
+  the ledger, matches its commitments and has a real time-stamp proof, then creates the GitHub
+  release `registry-<origin>`. Check with `python scripts/verify_published.py ledger/ledger.jsonl
+  <downloaded assets>`. Done for 2026-11-25 on 2026-11-26 (release `registry-2026-11-25`,
+  downloaded back and verified). The scheduled job does not publish, so the 2026-12-25 origin is
+  published by hand once someone is back at the machine; the amendment says "as soon as
+  practicable". The published `.ots` proofs are pending attestations; upgraded proofs can be added
+  to a release later as extra assets without replacing anything.
+
+Before the December origin:
 
 - **The 2026-12-25 origin may run unattended.** The machine is expected to stay on but that
   cannot be guaranteed. Checked 2026-11-19: desktop on mains, sleep and hibernate never, wake

@@ -169,6 +169,19 @@ Added on 2026-11-19 at the owner's instruction; this section was drafted by the 
 
 **Revised 2026-11-26 (owner):** the site may go ahead before the 2026-12-25 run and before January 2027, and direct model outputs may be public. This supersedes the "errors only" scope and points 1 to 3 below, which are kept for the record. The live part of the site shows the published forecasts and outturns, and no live error, score or ranking before the pre-registration's 12-origin threshold. Live forecasts are published under Amendment 1 (`PREREGISTRATION_AMENDMENTS.md`, approved 2026-11-26), one GitHub release per origin.
 
+**Owner decisions, 2026-11-26 (design stage):**
+
+- Per-origin backtest forecasts (median and 80% interval) and first-release outturns are published with the site, as exported files committed to this repository. Outturn values are shown for all sources with attribution and with the transformations stated (Statistics Canada Open Licence, OECD and Eurostat terms allow reuse with attribution; the ECB real-time database page says "for research purposes only" and does not state redistribution of derived series either way: the owner chose to show them, `docs/probes/ecb_eurostat.md` A.7).
+- TimesFM 3.0 is left off the site.
+- Live record page: explanation, progress towards 12 origins, ledger lines and release links. No charts of live forecasts for now.
+- No byline; a link to the GitHub repository in the footer. Address: a subdomain of the owner's own domain.
+- Real-time versus revised input is a main view of the results page; the comparison with ECB survey forecasters goes in the technical appendix.
+- Pages: Overview, Results (dashboard), Tables, Models, Data, Live record, Technical appendix. No league table: default views follow the published headline slices, sample sizes and tests sit beside anything sortable, the reading notes stay attached, and the site computes no new pooled statistic.
+- Build: fully static. A Python export step writes JSON from the existing tables and forecast store, with a test that exported numbers equal the published tables; the browser only filters and draws. Vite and React, in `site/` with its own lockfile; the root lockfile, configs and pins are untouched. Hosting: a Cloudflare Worker serving static files, deployed from the repository, under the owner's personal Cloudflare account.
+- "Every number traces to a published table" in the done-when below now reads: every number traces to a published table, to the committed export files, or to the public ledger.
+
+Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26; (3) export step and its test; (4) remaining pages; (5) phone check, owner approval on a private preview, deploy.
+
 Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.
 
 Scope as stated by the owner on 2026-11-19 (superseded 2026-11-26, see above): covers the results and the live runs; for the live runs, errors only.

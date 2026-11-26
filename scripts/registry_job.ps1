@@ -2,6 +2,7 @@
 #
 #   1. `ffcast registry-status`: is the current origin (25th or next business day) done?
 #      Not due (registry off, no pre-registration, or already done): log one line and stop.
+#      If the status command fails or gives no answer, log STATUS FAILED and exit 6.
 #   2. `ffcast registry-run`: snapshot, forecast, seal, ledger line, time stamp. A run started
 #      after the origin day is recorded as late by the registry itself. If the run fails, the job
 #      stops with a non-zero exit code; nothing was sealed, and tomorrow's start tries again.
@@ -57,7 +58,15 @@ function Publish-Ledger {
 }
 
 try {
-    $st = (uv run ffcast registry-status | Select-Object -Last 1) | ConvertFrom-Json
+    # A status that failed to run (seen 2026-11-22 under machine-wide memory pressure) must not
+    # read as "nothing due": fail visibly instead, and the next start tries again.
+    $raw = uv run ffcast registry-status 2>> (Join-Path $repo "registry\job_run.log")
+    $code = $LASTEXITCODE
+    $st = if ($raw) { ($raw | Select-Object -Last 1) | ConvertFrom-Json } else { $null }
+    if ($code -ne 0 -or $null -eq $st -or $null -eq $st.PSObject.Properties["due"]) {
+        Write-Log "STATUS FAILED (exit $code): registry-status gave no usable answer; see registry\job_run.log; will retry at the next start"
+        exit 6
+    }
     if (-not $st.due) {
         $pushed = Publish-Ledger
         Write-Log "nothing due (enabled=$($st.enabled) preregistered=$($st.preregistered) origin=$($st.origin) done=$($st.done))"

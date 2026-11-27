@@ -88,7 +88,7 @@ export function Overview({ scores }: { scores: Scores }) {
         <h1>Can off-the-shelf foundation models forecast macro data as well as standard benchmarks?</h1>
         <p className="lede">
           {cap(word(nFm))} pretrained time-series models were run zero-shot on Canadian and euro-area data, seeing at each forecast date only
-          what had been published by then. They are scored against an autoregression, a Bayesian VAR and a dynamic factor model on
+          what had been published by then. They are scored against an autoregression, a historical mean, a Bayesian VAR and a dynamic factor model on
           first-release outturns.
         </p>
       </div>

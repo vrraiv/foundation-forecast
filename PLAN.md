@@ -184,6 +184,8 @@ Added on 2026-11-19 at the owner's instruction; this section was drafted by the 
 
 - Colours and navigation (owner, 2026-11-26, after the mock-up rounds): the page takes the owner's first seed set (dark text, slate secondary text, gold as the only highlight); the charts take the second (blue for foundation models, coral for benchmarks); the dark theme sits on a navy ground. The token values are accepted for now and may be revised. Navigation is a contents line under a masthead in place of a tab bar: pages grouped as backtest, reference and live record, with the live entry showing how many forecast dates are sealed out of 12 (a count already public in the ledger; no score).
 
+- Content and deployment (owner, 2026-11-26, after the pages were built): TimesFM 3.0 is not mentioned on the site. The comparison with survey forecasters stays a link to the published results document. The Overview counts four benchmarks; the two averages are not counted. The site is reviewed on a preview deployment linked from the pull request, and merging that pull request is the production deployment. Cloudflare's build service rebuilds on every push to `main`, including ledger-only pushes.
+
 Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26, layout, colours and navigation agreed the same day; (3) export step and its test; (4) remaining pages; (5) phone check, owner approval on a private preview, deploy.
 
 Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.

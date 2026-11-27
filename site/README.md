@@ -23,5 +23,7 @@ Where things come from:
   `docs/model_cards.md`, `docs/data_quality.md`, `docs/backtest.md`, `configs/default.yaml` and
   the pre-registration. Update the page when the source changes.
 
-`wrangler.jsonc` describes a Cloudflare Worker that serves `dist/` as static files. Nothing is
-deployed by this repository's scripts.
+`wrangler.jsonc` describes a Cloudflare Worker that serves `dist/` as static files. Cloudflare's
+build service builds from the repository with this folder as its root: `npm run build`, then
+`npx wrangler deploy` on `main` and `npx wrangler preview` on other branches. Because the build
+reads `../ledger/ledger.jsonl`, a push that changes only the ledger rebuilds the site too.

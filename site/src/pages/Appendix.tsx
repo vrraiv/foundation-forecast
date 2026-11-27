@@ -126,10 +126,6 @@ export function Appendix() {
             </li>
             <li>The levels variant, in which foundation models forecast the level of a series. Its tables are in section 5.6 of the same document.</li>
             <li>
-              One further model, TimesFM 3.0, was added after the first results had been seen and was retired the same day. It is not shown on
-              this site. Its tables are in the same document, whose header records the decision.
-            </li>
-            <li>
               Departures from the plan after the first full run are listed, with reasons, in <a href={doc("docs/backtest.md")}>docs/backtest.md</a>.
             </li>
           </ul>

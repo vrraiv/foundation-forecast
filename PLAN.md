@@ -163,7 +163,7 @@ Tests: tampering with any stored forecast, snapshot or manifest makes `verify` f
 
 Text-model forecasts need API keys, cost controls and look-ahead diagnostics (fake-date tests, recall probes). Leave an interface stub and a note only.
 
-### Phase 7 (planned; may start before January 2027): public site
+### Phase 7 (live since 2026-11-26): public site
 
 Added on 2026-11-19 at the owner's instruction; this section was drafted by the agent from that instruction and is the owner's to revise. Estimated at about one day of design.
 
@@ -186,7 +186,7 @@ Added on 2026-11-19 at the owner's instruction; this section was drafted by the 
 
 - Content and deployment (owner, 2026-11-26, after the pages were built): TimesFM 3.0 is not mentioned on the site. The comparison with survey forecasters stays a link to the published results document. The Overview counts four benchmarks; the two averages are not counted. The site is reviewed on a preview deployment linked from the pull request, and merging that pull request is the production deployment. Cloudflare's build service rebuilds on every push to `main`, including ledger-only pushes.
 
-Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26, layout, colours and navigation agreed the same day; (3) export step and its test; (4) remaining pages; (5) phone check, owner approval on a private preview, deploy.
+Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26, layout, colours and navigation agreed the same day; (3) export step and its test, done; (4) remaining pages, done; (5) phone check, owner approval on a preview, deploy: done 2026-11-26 (pull request #1 merged by the owner; custom domain added by the owner).
 
 Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.
 

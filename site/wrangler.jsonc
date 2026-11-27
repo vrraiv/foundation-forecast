@@ -1,0 +1,14 @@
+// Static files only: no Worker script, no bindings, no route. The address is set in the
+// Cloudflare dashboard by the owner, not here.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "foundation-forecast",
+  "compatibility_date": "2026-11-26",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // Branch and pull-request previews use the same static files and need no settings of their own.
+  "previews": {}
+}

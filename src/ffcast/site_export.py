@@ -177,6 +177,7 @@ def build(
     lo, hi = f"q{(1 - cover) / 2:.1f}", f"q{1 - (1 - cover) / 2:.1f}"
     tr, _ = load_scored_frame(cfg, root)
     tr = keep(tr[(tr["origin"] >= cfg.origins.first) & (tr["space"] == "transformed")])
+    origins: set[str] = set()
     for (e, t), g in sorted(tr.groupby(["econ", "target"]), key=lambda kv: kv[0]):
         cells = {}
         for (h, mode), gh in sorted(g.groupby(["horizon", "input_mode"]), key=lambda kv: kv[0]):
@@ -187,6 +188,7 @@ def build(
                 continue
             base = gh.drop_duplicates("origin").sort_values("origin")
             idx = pd.Index(base["origin"])
+            origins.update(str(o) for o in idx)
             cell = {
                 "origin": [str(o) for o in idx],
                 "period": base["target_period"].astype(str).tolist(),
@@ -219,6 +221,7 @@ def build(
         },
         "horizons": {k: list(v) for k, v in cfg.horizons.items()},
         "first_origin": cfg.origins.first,
+        "scored_origins": {"first": min(origins), "last": max(origins), "n": len(origins)},
         "extension_first_origin": cfg.origins.extension_first,
         "covid_window": list(cfg.exclusion_windows["covid"]),
         "interval": {"coverage": cover, "lower": lo, "upper": hi},

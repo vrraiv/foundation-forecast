@@ -1,0 +1,45 @@
+/* Every colour on the site is defined here and nowhere else (scripts/check-colours.mjs enforces it).
+   Seeds chosen by the owner on 2026-11-26; values accepted for now and open to revision.
+   Page: dark slate text, slate secondary text, gold as the only highlight. Charts: blue for
+   foundation models, coral for benchmarks. Dark theme on a navy ground. */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --c-page: #f3f5f6;        /* page ground */
+  --c-panel: #ffffff;       /* panels, controls */
+  --c-shade: #e4e8ec;       /* selected controls, bands */
+  --c-ink: #282c30;         /* text */
+  --c-ink-2: #495764;       /* secondary text */
+  --c-line: #d9dde1;        /* borders */
+  --c-line-2: #eaedf0;      /* faint rules, grid lines */
+  --c-hl: #d7ae00;          /* highlight: current page, selected row, link underline */
+  --c-notice: #fbeec9;      /* notice ground */
+  --c-notice-ink: #6a560a;  /* text on the notice ground */
+  --c-fm: #295aa1;          /* chart: foundation models */
+  --c-fm-soft: #9ab9e8;     /* chart: foundation models, earlier period */
+  --c-bench: #e7725a;       /* chart: benchmarks */
+  --c-better: #295aa1;      /* scale: smaller errors than the AR */
+  --c-worse: #da4339;       /* scale: larger errors than the AR */
+  --c-mid: #eaebec;         /* scale: midpoint */
+  --c-heat-ink: #282c30;    /* text on scale cells */
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-page: #151c30;
+  --c-panel: #1e263a;
+  --c-shade: #2a3248;
+  --c-ink: #f4e4e1;
+  --c-ink-2: #acbacb;
+  --c-line: #353d51;
+  --c-line-2: #283045;
+  --c-hl: #d7ae00;
+  --c-notice: #43370d;
+  --c-notice-ink: #d7ae00;
+  --c-fm: #7f90eb;
+  --c-fm-soft: #465195;
+  --c-bench: #e07a6a;
+  --c-better: #718ce8;
+  --c-worse: #e86156;
+  --c-mid: #363a45;
+  --c-heat-ink: #ffffff;
+}

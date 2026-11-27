@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><!--app-title--></title>
+    <meta name="description" content="<!--app-description-->" />
+    <script>
+      // Set the theme before the first paint: the stored choice, else the system setting.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("ff-theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"><!--app-html--></div>
+    <script type="module" src="/src/entry-client.tsx"></script>
+  </body>
+</html>

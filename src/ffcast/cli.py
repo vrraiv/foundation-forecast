@@ -337,6 +337,30 @@ def registry_verify(
     raise typer.Exit(code=1 if problems else 0)
 
 
+@app.command("site-export")
+def site_export(
+    out: str = typer.Option("", help="Output directory (default site/public/data)"),
+    root: str = typer.Option("", help="Backtest store (default data/backtest)"),
+) -> None:
+    """Export the published backtest for the public site (Phase 7): score tables, per-origin
+    medians and interval bounds, and first-release outturns, as JSON under site/public/data.
+    Refuses unless the private tables are the published ones. Nothing is pushed or deployed."""
+    from pathlib import Path
+
+    from .eval.store import BACKTEST_ROOT
+    from .site_export import SITE_DATA, ExportError, build, write
+
+    try:
+        files = build(root=Path(root) if root else BACKTEST_ROOT)
+    except ExportError as e:
+        typer.echo(f"refused: {e}")
+        raise typer.Exit(code=1) from e
+    d = write(files, Path(out) if out else SITE_DATA)
+    for name, data in files.items():
+        typer.echo(f"{len(data):>9,d}  {name}")
+    typer.echo(f"wrote {len(files)} files, {sum(map(len, files.values())):,d} bytes, to {d}")
+
+
 @app.command("registry-publish")
 def registry_publish(
     origin: str = typer.Argument(..., help="Origin date YYYY-MM-DD"),

@@ -3,7 +3,7 @@
 // dates are sealed. It shows no forecast, no outturn and no score.
 import { meta } from "../lib/data";
 import { cap, longDate, word } from "../lib/labels";
-import { needed, preregistration, releaseUrl, REPO_URL, runs, sealed } from "../lib/ledger";
+import { needed, preregistration, releaseUrl, REPO_URL, runs, sealed, sealedLabel } from "../lib/ledger";
 
 const short = (h: string) => `${h.slice(0, 12)}…`;
 
@@ -23,10 +23,10 @@ export function Live() {
         <header>
           <h2>Progress to the first scoring</h2>
           <p className="text-[13px] text-ink-2">
-            {sealed} of {needed} monthly forecast dates sealed. The record is first scored once {word(needed)} dates have outturns.
+            {sealedLabel}. The record is first scored once {word(needed)} monthly forecast dates have outturns.
           </p>
         </header>
-        <div className="prog" style={{ "--n": needed } as React.CSSProperties} role="img" aria-label={`${sealed} of ${needed} forecast dates sealed`}>
+        <div className="prog" style={{ "--n": needed } as React.CSSProperties} role="img" aria-label={sealedLabel}>
           {Array.from({ length: needed }, (_, i) => (
             <i key={i} className={i < sealed ? "on" : undefined} />
           ))}

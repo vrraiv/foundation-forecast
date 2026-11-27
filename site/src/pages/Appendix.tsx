@@ -149,8 +149,9 @@ export function Appendix() {
               <code title={meta.source.summary_sha256}>{meta.source.summary_sha256.slice(0, 12)}…</code>.
             </li>
             <li>
-              A test checks every figure in the published results document against the export, and reproduces every main score from the exported
-              forecasts and outturns.
+              A test checks the export against the published results document: every figure in its headline tables, and the first 400 rows
+              of each of its views, which is all the document prints. A second test recomputes the sample size, RMSFE, MAE and mean error of
+              every score in the main window from the exported forecasts and outturns.
             </li>
             <li>
               The <a href={pageById("live").path}>live record</a> page is built from the public ledger alone. No live forecast is scored before{" "}

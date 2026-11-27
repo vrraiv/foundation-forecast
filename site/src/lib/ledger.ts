@@ -18,4 +18,6 @@ export const preregistration = ledger.find((e) => e.kind === "preregistration");
 export const runs = ledger.filter((e) => e.kind === "run" && e.origin);
 export const sealed = new Set(runs.map((e) => e.origin)).size;
 export const needed = meta.live_first_scoring_min_origins;
+/** "1 of 12 sealed" until the threshold is passed, then just the count. */
+export const sealedLabel = sealed <= needed ? `${sealed} of ${needed} sealed` : `${sealed} forecast dates sealed`;
 export const releaseUrl = (origin: string) => `${REPO_URL}/releases/tag/registry-${origin}`;

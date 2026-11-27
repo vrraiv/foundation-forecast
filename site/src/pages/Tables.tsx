@@ -164,7 +164,7 @@ export function Tables({ scores: main }: { scores: Scores }) {
         <h1>Tables</h1>
         <p className="text-ink-2">
           The score tables behind the charts, one table per horizon. Rows keep a fixed order, and any column can be sorted. Every figure sits
-          beside its sample size and its test against the AR. The site computes no figure of its own: these are the published tables.
+          beside its sample size and its test against the AR. The site computes no figure of its own: each is read from the exported score tables.
         </p>
       </div>
       <div className="filters">

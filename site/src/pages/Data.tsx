@@ -54,8 +54,9 @@ export function Data() {
           <li>It sees only observations whose publication date is strictly before the forecast date.</li>
           <li>Growth rates are computed inside one vintage, so rebasings and chain-linking changes between vintages never reach a model.</li>
           <li>
-            Horizons count periods after the target's last published value. Horizon 1 is the first period not yet published, which for most
-            series is a month or quarter that has already ended.
+            Horizons count periods after the target's last published value. Horizon 1 is the first period not yet published. For consumer
+            prices that is usually the current month; for series published with a longer delay it is a month or quarter that has already
+            ended.
           </li>
           <li>A target is skipped on a date with fewer than 120 monthly or 40 quarterly observations in its vintage.</li>
         </ul>

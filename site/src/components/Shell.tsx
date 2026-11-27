@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { needed, REPO_URL, sealed } from "../lib/ledger";
+import { needed, REPO_URL, sealed, sealedLabel } from "../lib/ledger";
 import { GROUPS, pageById, type PageId } from "../routes";
 
 /** Twelve ticks, one filled per sealed forecast date: a count already public in the ledger. */
@@ -67,9 +67,7 @@ export function Masthead({ current }: { current: PageId | null }) {
             <span className="label">{live.name}</span>
             <span className="it">
               <Ticks />
-              <span className="t">
-                {sealed} of {needed} sealed
-              </span>
+              <span className="t">{sealedLabel}</span>
             </span>
           </a>
         </nav>

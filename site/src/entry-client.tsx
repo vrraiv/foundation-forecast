@@ -23,7 +23,11 @@ async function start() {
   const app = <App page={page?.id ?? null} scores={scores} />;
   // The pre-rendered page shows the default selection. With a selection in the address, or in
   // development (nothing pre-rendered), render from scratch instead of adopting that markup.
-  if (root.hasChildNodes() && !window.location.search) hydrateRoot(root, app);
+  // Adopt the pre-rendered markup only when it is this page's own. An unknown address may be
+  // answered with another page's markup by some hosts, and development has no markup at all.
+  const prerendered = !!root.firstElementChild;
+  if (!prerendered || !page) document.title = page?.title ?? "Page not found | Foundation Forecast";
+  if (prerendered && page && !window.location.search) hydrateRoot(root, app);
   else {
     root.textContent = "";
     createRoot(root).render(app);

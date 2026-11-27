@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { needed, REPO_URL, sealed } from "../lib/ledger";
 import { GROUPS, pageById, type PageId } from "../routes";
 
@@ -84,7 +84,7 @@ export function Footer() {
       <div className="inner grid gap-1.5">
         <div>
           Data: Statistics Canada (Statistics Canada Open Licence), ECB Real Time Database, Eurostat, OECD. Growth rates and differences are
-          computed by this project from those sources; none of them endorses it.
+          computed by this project from those sources; none of them endorses it. Details on the <a href="/data/">Data</a> page.
         </div>
         <div>
           A personal project on public data. Code, tables and the pre-registration: <a href={REPO_URL}>{REPO_URL.replace("https://", "")}</a>
@@ -143,13 +143,4 @@ export function Tip() {
     };
   }, []);
   return <div id="tip" ref={ref} hidden />;
-}
-
-export function PageHead({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <div className="prose">
-      <h1>{title}</h1>
-      {children}
-    </div>
-  );
 }

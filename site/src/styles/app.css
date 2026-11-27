@@ -55,13 +55,14 @@
   .prose ul, .prose ol { padding-left: 20px; display: grid; gap: 4px; }
   .prose ul { list-style: disc; } .prose ol { list-style: decimal; }
   .lede { font-size: 16.5px; }
-  .panel { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 6px; padding: 16px 18px; min-width: 0; display: grid; gap: 12px; }
+  .panel { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 6px; padding: 16px 18px; min-width: 0; display: grid; gap: 12px; align-content: start; }
   .panel > header { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; justify-content: space-between; }
   .panel > header p { flex-basis: 100%; }
   .two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; align-items: start; }
   .filters { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; }
   .field { display: grid; gap: 3px; }
-  .scroll { overflow-x: auto; }
+  .scroll { overflow-x: auto; container-type: inline-size; }
+  .only-stacked { display: none; }
 
   /* segmented control */
   .seg { display: inline-flex; border: 1px solid var(--c-line); border-radius: 5px; overflow: hidden; background: var(--c-panel); }
@@ -158,10 +159,35 @@
   .dt th:first-child, .dt td:first-child, .dt .l { text-align: left; }
   .dt thead th { font-weight: 500; color: var(--c-ink-2); border-bottom-color: var(--c-line); font-size: 13px; vertical-align: bottom; }
   .dt thead button { background: transparent; border: 0; padding: 0; cursor: pointer; color: inherit; font-weight: inherit; }
-  .dt thead button[aria-sort]:not([aria-sort="none"]) { color: var(--c-ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--c-hl); text-underline-offset: 3px; }
+  .dt thead button[data-sorted] { color: var(--c-ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--c-hl); text-underline-offset: 3px; }
   .dt td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .dt tr.grp td { font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11.5px; color: var(--c-ink-2); font-weight: 600; padding-top: 12px; border-bottom-color: var(--c-line); text-align: left; }
   .dt.wrap td, .dt.wrap th { white-space: normal; text-align: left; vertical-align: top; }
+  /* in a narrow container a stacking table turns each row into a block: the name, then labelled figures.
+     Wide tables (.early) switch sooner, so no table ever scrolls sideways. */
+  @container (max-width: 640px) {
+    .only-stacked { display: flex; }
+    .dt.stack thead { display: none; }
+    .dt.stack, .dt.stack tbody { display: block; }
+    .dt.stack tr { display: grid; grid-template-columns: var(--stack-grid, repeat(auto-fill, minmax(96px, 1fr))); gap: 6px 12px; padding: 10px 2px; border-bottom: 1px solid var(--c-line-2); }
+    .dt.stack td { display: block; border: 0; padding: 0; text-align: left; white-space: normal; min-width: 0; }
+    .dt.stack td:first-child { grid-column: 1 / -1; font-weight: 500; font-size: 14.5px; }
+    .dt.stack td[data-l]::before { content: attr(data-l); display: block; font-family: var(--font-sans); font-size: 12px; color: var(--c-ink-2); }
+    .dt.stack tr.grp { display: block; padding: 12px 2px 4px; border-bottom-color: var(--c-line); }
+    .dt.stack tr.grp td { padding: 0; }
+  }
+  @container (max-width: 860px) {
+    .only-stacked.early { display: flex; }
+    .dt.stack.early thead { display: none; }
+    .dt.stack.early, .dt.stack.early tbody { display: block; }
+    .dt.stack.early tr { display: grid; grid-template-columns: var(--stack-grid, repeat(auto-fill, minmax(96px, 1fr))); gap: 6px 12px; padding: 10px 2px; border-bottom: 1px solid var(--c-line-2); }
+    .dt.stack.early td { display: block; border: 0; padding: 0; text-align: left; white-space: normal; min-width: 0; }
+    .dt.stack.early td:first-child { grid-column: 1 / -1; font-weight: 500; font-size: 14.5px; }
+    .dt.stack.early td[data-l]::before { content: attr(data-l); display: block; font-family: var(--font-sans); font-size: 12px; color: var(--c-ink-2); }
+    .dt.stack.early tr.grp { display: block; padding: 12px 2px 4px; border-bottom-color: var(--c-line); }
+    .dt.stack.early tr.grp td { padding: 0; }
+  }
+  .dt.stack tr.grp td:first-child { font-size: 11.5px; font-weight: 600; }
   .fold { border: 1px solid var(--c-line); border-radius: 6px; background: var(--c-panel); min-width: 0; }
   .fold > summary { list-style: none; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
   .fold > summary::-webkit-details-marker { display: none; }

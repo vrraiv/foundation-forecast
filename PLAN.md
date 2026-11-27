@@ -182,7 +182,9 @@ Added on 2026-11-19 at the owner's instruction; this section was drafted by the 
 
 - Styling (owner, 2026-11-26, after the first mock-up): Tailwind CSS, with every colour a semantic token derived from seed colours the owner will choose; light and dark themes with a visible toggle. On phones the plots take the full width and the figures sit beneath them, with no sideways scrolling.
 
-Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26; (3) export step and its test; (4) remaining pages; (5) phone check, owner approval on a private preview, deploy.
+- Colours and navigation (owner, 2026-11-26, after the mock-up rounds): the page takes the owner's first seed set (dark text, slate secondary text, gold as the only highlight); the charts take the second (blue for foundation models, coral for benchmarks); the dark theme sits on a navy ground. The token values are accepted for now and may be revised. Navigation is a contents line under a masthead in place of a tab bar: pages grouped as backtest, reference and live record, with the live entry showing how many forecast dates are sealed out of 12 (a count already public in the ledger; no score).
+
+Steps: (1) decisions, done; (2) private mock-up of Overview and Results for the owner's feedback, published 2026-11-26, layout, colours and navigation agreed the same day; (3) export step and its test; (4) remaining pages; (5) phone check, owner approval on a private preview, deploy.
 
 Purpose: a user-friendly, polished public site that presents the project: the backtest results and the live record.
 
